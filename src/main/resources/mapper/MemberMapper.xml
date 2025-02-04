@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.instagramclone.repository.MemberRepository">
+
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+        INSERT INTO users
+            (username, password, email, phone, name)
+        VALUES
+            (#{username}, #{password}, #{email}, #{phone}, #{name})
+    </insert>
+
+    <select id="findByEmail" resultType="Member">
+        SELECT *
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <select id="findByPhone" resultType="Member">
+        SELECT *
+        FROM users
+        WHERE phone = #{phone}
+    </select>
+
+    <select id="findByUsername" resultType="Member">
+        SELECT *
+        FROM users
+        WHERE username = #{username}
+    </select>
+
+    <!--    프로필 사진 수정 -->
+    <update id="updateProfileImage">
+        UPDATE users
+        SET profile_image_url = #{imageUrl},
+            updated_at        = NOW()
+        WHERE username = #{username}
+    </update>
+
+
+    <!-- 추천할 사용자 목록 조회 -->
+    <select id="findMembersToSuggest" resultType="Member">
+        SELECT
+            u.*
+        FROM users u
+        WHERE u.id != #{currentUserId} -- 본인 제외
+            AND u.id NOT IN ( -- 이미 팔로우한 사용자 제외
+                            SELECT follower_id
+                            FROM follows
+                            WHERE following_id = #{currentUserId})
+        ORDER BY u.created_at DESC, -- 최근 가입한 사용자 우선
+                ( -- 활동이 많은 사용자 우선
+                    SELECT COUNT(*)
+                    FROM posts p
+                    WHERE p.member_id = u.id) DESC,
+                RAND()             -- 약간의 랜덤성 추가
+        LIMIT #{limit}
+    </select>
+
+<!--    검색어 기반 회원 조회  -->
+    <select id="searchMembers">
+        SELECT *
+        FROM users
+        WHERE username LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY username
+        LIMIT 5
+    </select>
+
+
+</mapper>
