@@ -49,7 +49,7 @@ public class Member {
     private String profileImageUrl;
 
     @Column(nullable = false, length = 20)
-    private String role;
+    private String role = "ROLE_USER";
 
     @Column(length = 255)
     private String refreshToken;
