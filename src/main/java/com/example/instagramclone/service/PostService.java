@@ -19,6 +19,9 @@ import com.example.instagramclone.util.FileUploadUtil;
 import com.example.instagramclone.util.HashtagUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,6 +41,8 @@ public class PostService {
     private final PostLikeRepository postLikeRepository; // 좋아요 정보 가져오기
     private final CommentRepository commentRepository; // 댓글 정보 가져오기
     private final FollowRepository followRepository; // 팔로우 정보
+    private final PostHashtagRepository postHashtagRepository;
+    private final PostImageRepository postImageRepository;
 
     private final FileUploadUtil fileUploadUtil; // 로컬서버에 이미지 저장
     private final HashtagUtil hashtagUtil; // 해시태그 추출기
@@ -61,12 +66,14 @@ public class PostService {
         boolean hasFollowing
                 = followRepository.countFollowByType(foundMember.getId(), "following") > 0;
 
-        List<Post> posts = hasFollowing
-                ? postRepository.findFeedPosts(foundMember.getId(), offset, size + 1)
-                : postRepository.findRecommendedPosts(offset, size + 1);
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        Slice<Post> posts = hasFollowing
+                ? postRepository.findFeedPosts(foundMember.getId(), pageable)
+                : postRepository.findRecommendedPosts(pageable);
 
         // 전체 피드 조회 - 사이즈를 하나 더 크게 조회하여 다음 데이터가 있는지 체크
-        List<PostResponse> feedList = posts
+        List<PostResponse> feedList = posts.getContent()
                 .stream()
                 .map(feed -> {
                     LikeStatusResponse likeStatus = LikeStatusResponse.of(
@@ -80,15 +87,15 @@ public class PostService {
 
         // 다음 페이지가 존재하는지 여부 확인
         // 클라이언트가 요구한 개수보다 많이 조회되었다면
-        boolean hasNext = feedList.size() > size;
+//        boolean hasNext = feedList.size() > size;
 
         // 클라이언트에게 다음 페이지 데이터가 있는게 확인되었다면
         // size + 1개를 반환하면 안된다. 마지막 데이터를 지우고 반환
-        if (hasNext) {
-            feedList.remove(feedList.size() - 1);
-        }
+//        if (hasNext) {
+//            feedList.remove(feedList.size() - 1);
+//        }
 
-        return FeedResponse.of(feedList, hasNext);
+        return FeedResponse.of(feedList, posts.hasNext());
 
     }
 
@@ -107,15 +114,15 @@ public class PostService {
         Post post = postCreate.toEntity();
 
         // 사용자의 ID를 세팅해줘야 함 <- 이걸 어케구함?
-        post.setMemberId(foundMember.getId());
+        post.setMember(foundMember);
 
         // 피드게시물을 posts테이블에 insert
-        postRepository.saveFeed(post);
+        postRepository.save(post);
 
         // 이미지 관련 처리를 모두 수행
         Long postId = post.getId();
 
-        processImages(postCreate.getImages(), postId);
+        processImages(postCreate.getImages(), post);
 
         // 해시태그 관련 처리를 수행
         processHashtags(post);
@@ -137,7 +144,7 @@ public class PostService {
             Hashtag foundHashtag = hashtagRepository.findByName(hashtagName)
                     .orElseGet(() -> {
                         Hashtag newHashtag = Hashtag.builder().name(hashtagName).build();
-                        hashtagRepository.insertHashtag(newHashtag);
+                        hashtagRepository.save(newHashtag);
                         log.debug("new hashtag saved: {}", hashtagName);
                         return newHashtag;
                     }) // 일단 조회해보고 없으면(null)~~~ 대체적으로 뭘할지
@@ -145,18 +152,18 @@ public class PostService {
 
             // 3. 해시태그와 피드를 연결해서 연결테이블에 저장
             PostHashtag postHashtag = PostHashtag.builder()
-                    .postId(post.getId())
-                    .hashtagId(foundHashtag.getId())
+                    .post(post)
+                    .hashtag(foundHashtag)
                     .build();
 
-            hashtagRepository.insertPostHashtag(postHashtag);
+            postHashtagRepository.save(postHashtag);
             log.debug("post hashtag saved: {}", postHashtag);
 
         });
 
     }
 
-    private void processImages(List<MultipartFile> images, Long postId) {
+    private void processImages(List<MultipartFile> images, Post post) {
 
         log.debug("start process Image!!");
         // 이미지들을 서버(/upload 폴더)에 저장
@@ -171,12 +178,12 @@ public class PostService {
                 log.debug("success to save file at: {}", uploadedUrl);
                 // 이미지들을 데이터베이스 post_images 테이블에 insert
                 PostImage postImage = PostImage.builder()
-                        .postId(postId)
+                        .post(post)
                         .imageUrl(uploadedUrl)
                         .imageOrder(order++)
                         .build();
 
-                postRepository.saveFeedImage(postImage);
+                postImageRepository.save(postImage);
             }
         }
 
@@ -199,7 +206,7 @@ public class PostService {
         );
 
         // 댓글 목록
-        List<CommentResponse> commentResponses = commentRepository.findByPostId(postId)
+        List<CommentResponse> commentResponses = commentRepository.findByPostIdWithMember(postId)
                 .stream()
                 .map(CommentResponse::from)
                 .collect(Collectors.toList());

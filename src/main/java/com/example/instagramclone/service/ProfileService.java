@@ -61,7 +61,7 @@ public class ProfileService {
                 foundMember
                 , feedCount
                 , FollowStatusResponse.of(
-                        followRepository.doesFollowExist(foundMember.getId(), loginMember.getId()),
+                        followRepository.existsByFollowerIdAndFollowingId(foundMember.getId(), loginMember.getId()),
                         followRepository.countFollowByType(foundMember.getId(), "follower"),
                         followRepository.countFollowByType(foundMember.getId(), "following")
                 )

@@ -1,26 +1,60 @@
 package com.example.instagramclone.domain.like.entity;
 
+import com.example.instagramclone.domain.member.entity.Member;
+import com.example.instagramclone.domain.post.entity.Post;
+import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-@Getter @Setter @ToString
-@EqualsAndHashCode
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Entity
+@Table(
+        name = "post_likes",
+        indexes = {
+                @Index(name = "idx_post_likes_post_id", columnList = "post_id"),
+                @Index(name = "idx_post_likes_member_id", columnList = "member_id")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "unique_post_member",
+                        columnNames = {"post_id", "member_id"}
+                )
+        }
+)
+@Getter @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@ToString(exclude = {"post", "member"})
 public class PostLike {
 
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Long postId;
-    private Long memberId;
+
+    @Setter
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    private Post post;
+
+    @Setter
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    // 좋아요를 생성할 때 사용할 편의 메서드
-    public static PostLike of(Long postId, Long memberId) {
+    @Builder
+    private PostLike(Post post, Member member) {
+        this.post = post;
+        this.member = member;
+    }
+
+
+    // 정적 팩토리 메서드
+    public static PostLike of(Post post, Member member) {
         return PostLike.builder()
-                .postId(postId)
-                .memberId(memberId)
+                .post(post)
+                .member(member)
                 .build();
     }
 }

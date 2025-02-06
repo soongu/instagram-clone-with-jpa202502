@@ -66,7 +66,7 @@ public class MemberService {
         newMember.setPassword(encodedPassword);
 
         // DB에 전송
-        memberRepository.insert(newMember);
+        memberRepository.save(newMember);
     }
 
     /**

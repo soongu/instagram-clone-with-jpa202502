@@ -45,15 +45,15 @@ public class FollowService {
         }
 
         // 팔로우 여부 확인
-        boolean isFollow = followRepository.doesFollowExist(followerId, followingId);
+        boolean isFollow = followRepository.existsByFollowerIdAndFollowingId(followerId, followingId);
 
         if (isFollow) { // 이미 팔로우를 한 상태 - 언팔
-            followRepository.delete(followerId, followingId);
+            followRepository.deleteByFollowerIdAndFollowingId(followerId, followingId);
         } else { // 아직 팔로우를 안 한 상태
-            followRepository.insert(
+            followRepository.save(
                     Follow.builder()
-                            .followingId(followingId)
-                            .followerId(followerId)
+                            .following(following)
+                            .follower(follower)
                             .build()
             );
         }
@@ -81,7 +81,7 @@ public class FollowService {
                     .stream()
                     .map(follow -> FollowResponse.of(
                             follow
-                            , followRepository.doesFollowExist(follow.getFollowing().getId(), loginMember.getId())
+                            , followRepository.existsByFollowerIdAndFollowingId(follow.getFollowing().getId(), loginMember.getId())
                             , FOLLOWER
                     ))
                     .collect(Collectors.toList());
@@ -90,7 +90,7 @@ public class FollowService {
                     .stream()
                     .map(follow -> FollowResponse.of(
                             follow
-                            , followRepository.doesFollowExist(follow.getFollower().getId(), loginMember.getId())
+                            , followRepository.existsByFollowerIdAndFollowingId(follow.getFollower().getId(), loginMember.getId())
                             , FOLLOWING
                     ))
                     .collect(Collectors.toList());
