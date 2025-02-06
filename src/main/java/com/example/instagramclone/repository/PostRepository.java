@@ -30,67 +30,67 @@ public interface PostRepository
     long countByMemberId(Long memberId);
 
     // 특정 사용자의 프로필 페이지 전용 피드 목록 조회
-    @Query(value = """
-            SELECT
-                p.id,
-                pi.image_url as mainThumbnail,
-                NVL(l.likeCount, 0) AS likeCount,
-                NVL(c.commentCount, 0) AS commentCount
-            FROM posts p
-            INNER JOIN (
-                SELECT post_id, image_url
-                FROM post_images
-                WHERE image_order = 1
-            ) pi ON p.id = pi.post_id
-            LEFT JOIN (
-                SELECT post_id, COUNT(*) AS likeCount
-                FROM post_likes
-                GROUP BY post_id
-            ) l ON p.id = l.post_id
-            LEFT JOIN (
-                SELECT post_id, COUNT(*) AS commentCount
-                FROM comments
-                GROUP BY post_id
-            ) c ON p.id = c.post_id
-            WHERE p.member_id = ?1
-            ORDER BY p.created_at DESC
-           """, nativeQuery = true)
-    List<ProfilePostResponse> findProfilePosts(Long memberId);
+//    @Query(value = """
+//            SELECT
+//                p.id,
+//                pi.image_url as mainThumbnail,
+//                NVL(l.likeCount, 0) AS likeCount,
+//                NVL(c.commentCount, 0) AS commentCount
+//            FROM posts p
+//            INNER JOIN (
+//                SELECT post_id, image_url
+//                FROM post_images
+//                WHERE image_order = 1
+//            ) pi ON p.id = pi.post_id
+//            LEFT JOIN (
+//                SELECT post_id, COUNT(*) AS likeCount
+//                FROM post_likes
+//                GROUP BY post_id
+//            ) l ON p.id = l.post_id
+//            LEFT JOIN (
+//                SELECT post_id, COUNT(*) AS commentCount
+//                FROM comments
+//                GROUP BY post_id
+//            ) c ON p.id = c.post_id
+//            WHERE p.member_id = ?1
+//            ORDER BY p.created_at DESC
+//           """, nativeQuery = true)
+//    List<ProfilePostResponse> findProfilePosts(Long memberId);
 
     // 특정 해시태그 페이지 전용 피드 목록 조회
-    @Query(value = """
-            SELECT
-                p.id,
-                pi.image_url           AS mainThumbnail,
-                NVL(l.likeCount, 0)    AS likeCount,
-                NVL(c.commentCount, 0) AS commentCount
-            FROM posts p
-            INNER JOIN post_hashtags ph ON p.id = ph.post_id
-            INNER JOIN (
-                    SELECT id, name
-                    FROM hashtags
-                    WHERE name = ?1
-            ) h ON ph.hashtag_id = h.id
-            LEFT OUTER JOIN
-                (SELECT post_id, image_url
-                FROM post_images
-                WHERE image_order = 1) pi ON p.id = pi.post_id
-            LEFT OUTER JOIN
-                (SELECT post_id, COUNT(*) AS likeCount
-                FROM post_likes
-                GROUP BY post_id) l ON p.id = l.post_id
-            LEFT OUTER JOIN
-                (SELECT post_id, COUNT(*) AS commentCount
-                FROM comments
-                GROUP BY post_id) c ON p.id = c.post_id
-            ORDER BY p.created_at DESC
-            LIMIT ?3 OFFSET ?2
-        """, nativeQuery = true)
-    List<ProfilePostResponse> findPostsByHashtag(
-            String tagName
-            , int offset
-            , int limit
-    );
+//    @Query(value = """
+//            SELECT
+//                p.id,
+//                pi.image_url           AS mainThumbnail,
+//                NVL(l.likeCount, 0)    AS likeCount,
+//                NVL(c.commentCount, 0) AS commentCount
+//            FROM posts p
+//            INNER JOIN post_hashtags ph ON p.id = ph.post_id
+//            INNER JOIN (
+//                    SELECT id, name
+//                    FROM hashtags
+//                    WHERE name = ?1
+//            ) h ON ph.hashtag_id = h.id
+//            LEFT OUTER JOIN
+//                (SELECT post_id, image_url
+//                FROM post_images
+//                WHERE image_order = 1) pi ON p.id = pi.post_id
+//            LEFT OUTER JOIN
+//                (SELECT post_id, COUNT(*) AS likeCount
+//                FROM post_likes
+//                GROUP BY post_id) l ON p.id = l.post_id
+//            LEFT OUTER JOIN
+//                (SELECT post_id, COUNT(*) AS commentCount
+//                FROM comments
+//                GROUP BY post_id) c ON p.id = c.post_id
+//            ORDER BY p.created_at DESC
+//            LIMIT ?3 OFFSET ?2
+//        """, nativeQuery = true)
+//    List<ProfilePostResponse> findPostsByHashtag(
+//            String tagName
+//            , int offset
+//            , int limit
+//    );
 
     // 단일 피드 상세조회 - querydsl로 처리
 //    Optional<Post> findPostDetailById(Long postId);

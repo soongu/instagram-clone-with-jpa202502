@@ -4,6 +4,7 @@ import com.example.instagramclone.domain.comment.entity.QComment;
 import com.example.instagramclone.domain.follow.entity.QFollow;
 import com.example.instagramclone.domain.like.entity.QPostLike;
 import com.example.instagramclone.domain.member.entity.QMember;
+import com.example.instagramclone.domain.post.dto.response.ProfilePostResponse;
 import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.domain.post.entity.QPost;
 import com.example.instagramclone.domain.post.entity.QPostImage;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -23,6 +25,7 @@ import java.util.Optional;
 public class PostRepositoryImpl implements PostRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public Slice<Post> findAllWithMemberAndImages(Pageable pageable) {
@@ -170,6 +173,79 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         }
 
         return new SliceImpl<>(posts, pageable, hasNext);
+    }
+
+    @Override
+    public List<ProfilePostResponse> findPostsByHashtag(String tagName, int offset, int limit) {
+        String sql = """
+                SELECT
+                    p.id,
+                    pi.image_url           AS mainThumbnail,
+                    NVL(l.likeCount, 0)    AS likeCount,
+                    NVL(c.commentCount, 0) AS commentCount
+                FROM posts p
+                INNER JOIN post_hashtags ph ON p.id = ph.post_id
+                INNER JOIN (
+                        SELECT id, name
+                        FROM hashtags
+                        WHERE name = ?
+                ) h ON ph.hashtag_id = h.id
+                LEFT OUTER JOIN
+                    (SELECT post_id, image_url
+                    FROM post_images
+                    WHERE image_order = 1) pi ON p.id = pi.post_id
+                LEFT OUTER JOIN
+                    (SELECT post_id, COUNT(*) AS likeCount
+                    FROM post_likes
+                    GROUP BY post_id) l ON p.id = l.post_id
+                LEFT OUTER JOIN
+                    (SELECT post_id, COUNT(*) AS commentCount
+                    FROM comments
+                    GROUP BY post_id) c ON p.id = c.post_id
+                ORDER BY p.created_at DESC
+                LIMIT ? OFFSET ?
+                """;
+
+        return jdbcTemplate.query(sql, (rs, n) -> ProfilePostResponse.builder()
+                .likeCount(rs.getLong("likeCount"))
+                .commentCount(rs.getLong("likeCount"))
+                .id(rs.getLong("id"))
+                .mainThumbnail(rs.getString("mainThumbnail"))
+                .build(), tagName, limit, offset);
+    }
+
+    @Override
+    public List<ProfilePostResponse> findProfilePosts(Long memberId) {
+        return jdbcTemplate.query("""
+            SELECT
+                p.id,
+                pi.image_url as mainThumbnail,
+                NVL(l.likeCount, 0) AS likeCount,
+                NVL(c.commentCount, 0) AS commentCount
+            FROM posts p
+            INNER JOIN (
+                SELECT post_id, image_url
+                FROM post_images
+                WHERE image_order = 1
+            ) pi ON p.id = pi.post_id
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS likeCount
+                FROM post_likes
+                GROUP BY post_id
+            ) l ON p.id = l.post_id
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS commentCount
+                FROM comments
+                GROUP BY post_id
+            ) c ON p.id = c.post_id
+            WHERE p.member_id = ?
+            ORDER BY p.created_at DESC
+           """, (rs, n) -> ProfilePostResponse.builder()
+                .likeCount(rs.getLong("likeCount"))
+                .commentCount(rs.getLong("likeCount"))
+                .id(rs.getLong("id"))
+                .mainThumbnail(rs.getString("mainThumbnail"))
+                .build(), memberId);
     }
 
 //    @Override
