@@ -208,7 +208,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         return jdbcTemplate.query(sql, (rs, n) -> ProfilePostResponse.builder()
                 .likeCount(rs.getLong("likeCount"))
-                .commentCount(rs.getLong("likeCount"))
+                .commentCount(rs.getLong("commentCount"))
                 .id(rs.getLong("id"))
                 .mainThumbnail(rs.getString("mainThumbnail"))
                 .build(), tagName, limit, offset);
@@ -242,7 +242,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
             ORDER BY p.created_at DESC
            """, (rs, n) -> ProfilePostResponse.builder()
                 .likeCount(rs.getLong("likeCount"))
-                .commentCount(rs.getLong("likeCount"))
+                .commentCount(rs.getLong("commentCount"))
                 .id(rs.getLong("id"))
                 .mainThumbnail(rs.getString("mainThumbnail"))
                 .build(), memberId);
