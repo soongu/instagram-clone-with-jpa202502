@@ -57,7 +57,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
 
         boolean hasNext = false;
         if (postIds.size() > pageable.getPageSize()) {
-            postIds.remove(postIds.size() - 1);
+            posts.remove(posts.size() - 1);
             hasNext = true;
         }
 
@@ -121,7 +121,7 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         // 3. 더보기 여부 확인
         boolean hasNext = false;
         if (postIds.size() > pageable.getPageSize()) {
-            postIds.remove(postIds.size() - 1);
+            posts.remove(posts.size() - 1);
             hasNext = true;
         }
 
@@ -168,8 +168,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
         // 3. 더보기 여부 확인
         boolean hasNext = false;
         if (postIds.size() > pageable.getPageSize()) {
-            postIds.remove(postIds.size() - 1);
             hasNext = true;
+            posts.remove(posts.size() - 1);
         }
 
         return new SliceImpl<>(posts, pageable, hasNext);
