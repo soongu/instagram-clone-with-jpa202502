@@ -130,7 +130,8 @@ public class MemberService {
         return Map.of(
                 "message", "로그인에 성공했습니다.",
                 "username", foundMember.getUsername(),
-                "accessToken", jwtTokenProvider.createAccessToken(foundMember.getUsername())
+                "accessToken", jwtTokenProvider.createAccessToken(foundMember.getUsername()),
+                "profileImage", foundMember.getProfileImageUrl()
         );
     }
 }
