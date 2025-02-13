@@ -11,13 +11,13 @@ public class MeResponse {
 
     private String username;
     private String name;
-    private String profileImageUrl;
+    private String profileImage;
 
     public static MeResponse from(Member member) {
         return MeResponse.builder()
                 .username(member.getUsername())
                 .name(member.getName())
-                .profileImageUrl(member.getProfileImageUrl())
+                .profileImage(member.getProfileImageUrl())
                 .build();
     }
 }
