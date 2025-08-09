@@ -24,6 +24,7 @@ import java.util.List;
 )
 @Getter @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(exclude = {"posts", "comments", "likes", "followers", "following"})
+@EqualsAndHashCode
 public class Member {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

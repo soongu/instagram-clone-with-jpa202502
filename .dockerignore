@@ -1,0 +1,34 @@
+# Git 관련
+.git
+.gitignore
+
+# IDE 관련
+.idea
+.vscode
+*.iml
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# 로그 파일
+*.log
+
+# 임시 파일
+*.tmp
+*.temp
+
+# 빌드 결과물 (도커에서 다시 빌드할 예정)
+build/
+out/
+
+# 테스트 관련
+src/test/
+
+# 도커 관련
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# README
+README.md 

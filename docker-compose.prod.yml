@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # MariaDB 서비스
+  mariadb:
+    image: mariadb:10.11
+    container_name: instagram-mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: instagram_clone
+      MYSQL_USER: instagram_user
+      MYSQL_PASSWORD: instagram_password
+    ports:
+      - '3307:3306'
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./src/main/resources/sql/ddl.sql:/docker-entrypoint-initdb.d/ddl.sql
+    networks:
+      - instagram-network
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mysqladmin',
+          'ping',
+          '-h',
+          'localhost',
+          '-u',
+          'instagram_user',
+          '-pinstagram_password',
+        ]
+      timeout: 30s
+      retries: 15
+      interval: 10s
+      start_period: 60s
+
+  # Spring Boot 애플리케이션 (도커허브에서 다운로드)
+  app:
+    image: YOUR_DOCKERHUB_USERNAME/instagram-clone:latest
+    container_name: instagram-app
+    ports:
+      - '8900:8900'
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    volumes:
+      - app_uploads:/app/uploads
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - instagram-network
+    restart: unless-stopped
+    # MariaDB가 완전히 준비될 때까지 대기하는 스크립트 추가
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for MariaDB to be ready...'
+        while ! mysqladmin ping -h mariadb -u instagram_user -pinstagram_password --silent; do
+          echo 'MariaDB is not ready yet. Waiting...'
+          sleep 2
+        done
+        echo 'MariaDB is ready! Starting application...'
+        exec java -jar -Dspring.profiles.active=docker build/libs/instagram-clone-0.0.1-SNAPSHOT.jar
+      "
+
+volumes:
+  mariadb_data:
+    driver: local
+  app_uploads:
+    driver: local
+
+networks:
+  instagram-network:
+    driver: bridge

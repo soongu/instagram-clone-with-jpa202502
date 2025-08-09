@@ -126,12 +126,13 @@ public class MemberService {
             throw new MemberException(ErrorCode.INVALID_PASSWORD);
         }
 
+        log.info("foundmember: {}", foundMember);
         // 로그인이 성공했을 때 JSON 생성 (액세스토큰을 포함)
         return Map.of(
                 "message", "로그인에 성공했습니다.",
                 "username", foundMember.getUsername(),
                 "accessToken", jwtTokenProvider.createAccessToken(foundMember.getUsername()),
-                "profileImage", foundMember.getProfileImageUrl()
+                "profileImage", foundMember.getProfileImageUrl() == null ? "null" : foundMember.getProfileImageUrl()
         );
     }
 }

@@ -1,0 +1,44 @@
+server:
+  port: 8900
+
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://mariadb:3306/instagram_clone?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: instagram_user
+    password: instagram_password
+  mvc:
+    view:
+      prefix: /WEB-INF/views/
+      suffix: .jsp
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 100MB
+  jpa:
+    database-platform: org.hibernate.dialect.MariaDB106Dialect
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    database: mysql
+
+logging:
+  level:
+    root: info
+    com:
+      example:
+        instagramclone: debug
+    org:
+      hibernate:
+        SQL: debug
+
+file:
+  upload:
+    location: /app/uploads/
+
+jwt:
+  secret-key: L6h/xMxGO53HQmR/OB99qR/y0kTr2CAyaI5RqBIX184=
+  access-token-validity-time: 3600000
+  refresh-token-validity-time: 604800000

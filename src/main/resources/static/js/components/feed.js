@@ -1,9 +1,10 @@
-
-import CarouselManager from "../ui/CarouselManager.js";
-import PostLikeManager from "../ui/PostLikeManager.js";
-import { fetchWithAuth } from "../util/api.js";
-import { createComment } from "./comment.js";
-import { openModal as openDetailModal } from "./feed-detail-modal.js";
+import CarouselManager from '../ui/CarouselManager.js';
+import PostLikeManager from '../ui/PostLikeManager.js';
+import { fetchWithAuth } from '../util/api.js';
+import { getCurrentUser } from '../util/auth.js';
+import { onProfileImageUpdate } from '../util/profile-image-updater.js';
+import { createComment } from './comment.js';
+import { openModal as openDetailModal } from './feed-detail-modal.js';
 
 // 무한스크롤을 위한 변수
 let currentPage = 1;
@@ -17,7 +18,6 @@ const $loadingSpinner = document.querySelector('.loader-spinner');
 
 // 피드를 서버로부터 불러오는 함수
 async function fetchFeeds() {
-
   if (!hasNextPage || isLoading) return;
 
   isLoading = true;
@@ -25,7 +25,7 @@ async function fetchFeeds() {
   $loadingSpinner.style.display = 'block';
 
   // 강제로 1초간의 로딩을 추가
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   // 서버 요청시 토큰을 헤더에 포함해서 요청해야 함
   const response = await fetchWithAuth(`/api/posts?page=${currentPage}&size=5`);
@@ -48,10 +48,11 @@ export function convertHashtagsToLinks(content) {
   return content.replace(
     /#[\w가-힣]+/g,
     (match) =>
-      `<a href="/explore/search/keyword/?q=${match.substring(1)}" class="hashtag">${match}</a>`
+      `<a href="/explore/search/keyword/?q=${match.substring(
+        1
+      )}" class="hashtag">${match}</a>`
   );
 }
-
 
 // 피드의 날짜를 조작
 export function formatDate(dateString) {
@@ -67,17 +68,14 @@ export function formatDate(dateString) {
   if (diff < 60) return '방금 전';
   if (diff < 60 * 60) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 60 * 60 * 24) return `${Math.floor(diff / (60 * 60))}시간 전`;
-  if (diff < 60 * 60 * 24 * 7) return `${Math.floor(diff / (60 * 60 * 24))}일 전`;
+  if (diff < 60 * 60 * 24 * 7)
+    return `${Math.floor(diff / (60 * 60 * 24))}일 전`;
 
-  return new Intl.DateTimeFormat(
-    'ko-KR', 
-    {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }
-  ).format(date);
-  
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
 }
 
 // 텍스트 길이에 따른 더보기 처리 함수
@@ -96,21 +94,31 @@ function truncateContent(writer, content, maxLength = 20) {
   return `
     <a href="/${writer}" class="post-username">${writer}</a>
     <span class="post-caption post-caption-truncated">
-      <span class="truncated-text">${convertHashtagsToLinks(truncatedContent)}...</span>
-      <span class="full-text" style="display: none;">${convertHashtagsToLinks(content)}</span>
+      <span class="truncated-text">${convertHashtagsToLinks(
+        truncatedContent
+      )}...</span>
+      <span class="full-text" style="display: none;">${convertHashtagsToLinks(
+        content
+      )}</span>
     </span>
     <button class="more-button">더 보기</button>
   `;
 }
 
-
 // 한개의 피드를 렌더링하는 함수
-function createFeedItem({ feed_id: feedId, username, profileImageUrl, content, images, createdAt, likeStatus, commentCount }) {
-
-
+function createFeedItem({
+  feed_id: feedId,
+  username,
+  profileImageUrl,
+  content,
+  images,
+  createdAt,
+  likeStatus,
+  commentCount,
+}) {
   const { liked, likeCount } = likeStatus;
 
-  // const makeImageTags = (images) => { 
+  // const makeImageTags = (images) => {
   //   let imgTag = '';
   //   for (const img of images) {
   //     imgTag += `<img src="${img.imageUrl}">`;
@@ -256,7 +264,6 @@ function initCarousel($feed) {
   }
 }
 
-
 // 더보기 버튼 이벤트
 function initMoreButton($feed) {
   // 더보기 버튼 이벤트 부여
@@ -276,7 +283,6 @@ function initMoreButton($feed) {
       $moreButton.style.display = 'none';
     });
   }
-
 }
 
 function initLikeAndComment($feed) {
@@ -296,14 +302,13 @@ function initLikeAndComment($feed) {
 
 // 피드가 렌더링 된 이후 처리해야할 것들 (캐러셀, 좋아요, 댓글 기능 등)
 function applyNewFeedProcess(feedList) {
-
   // 새로운 게시물들에게 기능 부여
-  feedList.forEach(({feed_id: feedId}) => { 
-    const $feed = document.querySelector(`.post[data-post-id="${feedId}"`)
+  feedList.forEach(({ feed_id: feedId }) => {
+    const $feed = document.querySelector(`.post[data-post-id="${feedId}"`);
     initCarousel($feed); // 이미지슬라이드 기능
     initMoreButton($feed); // 더보기 버튼 처리
     initLikeAndComment($feed); // 좋아요, 댓글 기능 처리
-  }); 
+  });
 }
 
 // 피드 렌더링 함수
@@ -313,22 +318,22 @@ async function renderFeed() {
   console.log(feedList);
 
   // feed html 생성
-  feedList.map((feed) => createFeedItem(feed))
-    .forEach($article => {
+  feedList
+    .map((feed) => createFeedItem(feed))
+    .forEach(($article) => {
       $feedContainer.append($article);
     });
 
   applyNewFeedProcess(feedList);
-
 }
 
 // 무한스크롤 처리 함수
 function initInfiniteScroll() {
-
   // 무한스크롤 옵저버 생성
-  const observer = new IntersectionObserver((entries) => { 
+  const observer = new IntersectionObserver((entries) => {
     // entries : 감시대상들의 집합배열
-    if (entries[0].isIntersecting && hasNextPage && !isLoading) { // 감시대상이 감지되었을 때 실행
+    if (entries[0].isIntersecting && hasNextPage && !isLoading) {
+      // 감시대상이 감지되었을 때 실행
       // console.log('로딩이 감지됨!');
 
       // 새로운 데이터 가져와서 화면에 렌더링
@@ -351,6 +356,25 @@ function initFeed() {
   renderFeed();
   // 무한 스크롤 이벤트 처리
   initInfiniteScroll();
+
+  // 프로필 사진 업데이트 이벤트 리스너 등록
+  onProfileImageUpdate(async ({ imageUrl }) => {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return;
+
+    // 피드에서 현재 사용자의 프로필 사진 업데이트
+    const $feedProfileImgs = document.querySelectorAll(
+      '.post .post-profile-image img'
+    );
+    $feedProfileImgs.forEach((img) => {
+      const username = img
+        .closest('.post')
+        ?.querySelector('.post-username')?.textContent;
+      if (username && username === currentUser.username) {
+        img.src = imageUrl;
+      }
+    });
+  });
 }
 
 export default initFeed;

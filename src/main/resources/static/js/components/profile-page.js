@@ -1,10 +1,9 @@
 import { fetchWithAuth } from '../util/api.js';
-
 import { getCurrentUser } from '../util/auth.js';
+import { updateAllProfileImages } from '../util/profile-image-updater.js';
 import initFollow from './follow.js';
 import initFollowModal from './follow-modal.js';
 import initCommon from './common.js';
-
 
 const $profileImageContainer = document.querySelector(
   '.profile-image-container'
@@ -86,7 +85,7 @@ async function renderProfileHeader({
                 
                 <button class="message-button">메시지 보내기</button>
             `;
-    
+
     const $button = document.querySelector('.following-button');
     if (isFollowing) {
       // 마우스 오버 시 언팔로우로 텍스트 변경
@@ -103,7 +102,6 @@ async function renderProfileHeader({
       $button.onmouseover = null;
       $button.onmouseout = null;
     }
-    
   }
 }
 
@@ -201,8 +199,9 @@ async function handleProfileImage(e) {
   }
 
   const { imageUrl } = await response.json();
-  const $img = $profileImageContainer.querySelector('img');
-  $img.src = imageUrl;
+
+  // 모든 프로필 사진 업데이트
+  await updateAllProfileImages(imageUrl);
 }
 
 // 프로필 사진 업데이트 처리

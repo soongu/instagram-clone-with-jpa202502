@@ -1,7 +1,7 @@
-
-import { fetchWithAuth } from "../util/api.js";
-import { getCurrentUser } from "../util/auth.js";
-import { toggleFollow } from "../util/api.js";
+import { fetchWithAuth } from '../util/api.js';
+import { getCurrentUser } from '../util/auth.js';
+import { toggleFollow } from '../util/api.js';
+import { onProfileImageUpdate } from '../util/profile-image-updater.js';
 
 const $suggestions = document.querySelector('.suggestions-list');
 
@@ -16,10 +16,13 @@ async function renderMe() {
     // 프로필 이미지 업데이트
     const $profileImg = $user.querySelector('.user-profile .profile-image img');
     if ($profileImg) {
-      $profileImg.src = currentUser.profileImageUrl ?? '/images/default-profile.svg';
+      $profileImg.src =
+        currentUser.profileImage ?? '/images/default-profile.svg';
       $profileImg.alt = `${currentUser.username}의 프로필 이미지`;
       // 프로필 페이지 링크
-      $profileImg.closest('.profile-image').setAttribute('href', `/${currentUser.username}`)
+      $profileImg
+        .closest('.profile-image')
+        .setAttribute('href', `/${currentUser.username}`);
     }
 
     // 사용자명과 실제 이름 업데이트
@@ -27,14 +30,11 @@ async function renderMe() {
     const $name = $user.querySelector('.name');
 
     $username.textContent = currentUser.username;
-    $username.setAttribute('href', `/${currentUser.username}`)
+    $username.setAttribute('href', `/${currentUser.username}`);
 
     $name.textContent = currentUser.name;
-
   }
 }
-
-
 
 function createSuggestionHTML(member) {
   return `
@@ -56,12 +56,13 @@ function createSuggestionHTML(member) {
 
 // 서버에 추천 사용자목록 요청하기
 async function refreshSuggestions() {
-
   const response = await fetchWithAuth(`/api/suggestions`);
   const data = await response.json();
 
   // console.log(data);
-  $suggestions.innerHTML = data.map(user => createSuggestionHTML(user)).join('');
+  $suggestions.innerHTML = data
+    .map((user) => createSuggestionHTML(user))
+    .join('');
 }
 
 async function initSuggestUser() {
@@ -71,7 +72,7 @@ async function initSuggestUser() {
   // 추천 목록 팔로우 버튼 이벤트 위임
   $suggestions.addEventListener('click', async (e) => {
     console.log('toggle follow!');
-    
+
     const $followButton = e.target.closest('.follow-button');
 
     const $item = $followButton.closest('.suggestion-item');
@@ -86,10 +87,20 @@ async function initSuggestUser() {
   });
 }
 
-
 async function initSuggestions() {
   await renderMe();
   await initSuggestUser(); // 추천사용자 목록 부분
+
+  // 프로필 사진 업데이트 이벤트 리스너 등록
+  onProfileImageUpdate(({ imageUrl, username }) => {
+    const $suggestionsProfileImg = document.querySelector(
+      '.current-user .profile-image img'
+    );
+    if ($suggestionsProfileImg) {
+      $suggestionsProfileImg.src = imageUrl;
+      $suggestionsProfileImg.alt = `${username}의 프로필 이미지`;
+    }
+  });
 }
 
 export default initSuggestions;
