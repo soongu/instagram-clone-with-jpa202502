@@ -11,10 +11,10 @@ import com.example.instagramclone.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
+import com.example.instagramclone.constant.AuthConstants;
 
 @Service
 @Slf4j
@@ -104,7 +104,7 @@ public class MemberService {
         4. 패스워드 일치를 검사
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> authenticate(LoginRequest loginRequest) {
+    public LoginResponse authenticate(LoginRequest loginRequest) {
 
         // 로그인 시도하는 계정명 (이메일, 전화번호, 사용자이름)
         String username = loginRequest.getUsername();
@@ -128,11 +128,11 @@ public class MemberService {
 
         log.info("foundmember: {}", foundMember);
         // 로그인이 성공했을 때 JSON 생성 (액세스토큰을 포함)
-        return Map.of(
-                "message", "로그인에 성공했습니다.",
-                "username", foundMember.getUsername(),
-                "accessToken", jwtTokenProvider.createAccessToken(foundMember.getUsername()),
-                "profileImage", foundMember.getProfileImageUrl() == null ? "null" : foundMember.getProfileImageUrl()
+        return LoginResponse.of(
+                AuthConstants.LOGIN_SUCCESS_MESSAGE,
+                foundMember.getUsername(),
+                jwtTokenProvider.createAccessToken(foundMember.getUsername()),
+                foundMember.getProfileImageUrl() == null ? "null" : foundMember.getProfileImageUrl()
         );
     }
 }

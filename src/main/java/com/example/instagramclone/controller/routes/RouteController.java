@@ -20,7 +20,7 @@ public class RouteController {
             @AuthenticationPrincipal String username
     ) {
         log.info("메인페이지에서 인증된 사용자명: {}", username);
-        if (username.equals("anonymousUser")) {
+        if ("anonymousUser".equals(username)) {
             return "auth/login";
         }
         return "index";  // 나중에 로그인 후 복귀할 때 주석해제
