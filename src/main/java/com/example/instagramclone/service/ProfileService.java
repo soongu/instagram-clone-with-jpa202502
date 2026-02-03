@@ -1,13 +1,13 @@
 package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.follow.dto.response.FollowStatusResponse;
+import com.example.instagramclone.domain.member.dto.response.MemberWithStatsDto;
 import com.example.instagramclone.domain.member.dto.response.MeResponse;
 import com.example.instagramclone.domain.member.dto.response.ProfileHeaderResponse;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.domain.post.dto.response.ProfilePostResponse;
 import com.example.instagramclone.exception.ErrorCode;
 import com.example.instagramclone.exception.MemberException;
-import com.example.instagramclone.repository.FollowRepository;
 import com.example.instagramclone.repository.MemberRepository;
 import com.example.instagramclone.repository.PostRepository;
 import com.example.instagramclone.util.FileUploadUtil;
@@ -28,7 +28,6 @@ public class ProfileService {
 
     private final MemberRepository memberRepository;
     private final PostRepository postRepository;
-    private final FollowRepository followRepository;
 
     private final FileUploadUtil fileUploadUtil;
 
@@ -48,22 +47,17 @@ public class ProfileService {
     @Transactional(readOnly = true)
     public ProfileHeaderResponse getProfileHeader(String username, String loginUsername) {
 
-        // 사용자 이름에 매칭되는 회원정보 (프사, 이름, 사용자이름)
-        Member foundMember = getMember(username);
-
-        // 로그인 한 유저 정보
-        Member loginMember = getMember(loginUsername);
-
-        // 이 사용자가 작성한 피드의 수
-        long feedCount = postRepository.countByMemberId(foundMember.getId());
+        // 사용자 이름에 매칭되는 회원정보와 통계 데이터를 한 번에 조회
+        MemberWithStatsDto memberWithStats = memberRepository.findMemberWithStats(username, loginUsername)
+                .orElseThrow(() -> new MemberException(ErrorCode.MEMBER_NOT_FOUND));
 
         return ProfileHeaderResponse.of(
-                foundMember
-                , feedCount
+                memberWithStats.getMember()
+                , memberWithStats.getFeedCount()
                 , FollowStatusResponse.of(
-                        followRepository.existsByFollowerIdAndFollowingId(foundMember.getId(), loginMember.getId()),
-                        followRepository.countFollowByType(foundMember.getId(), "follower"),
-                        followRepository.countFollowByType(foundMember.getId(), "following")
+                        memberWithStats.isFollowing(),
+                        memberWithStats.getFollowerCount(),
+                        memberWithStats.getFollowingCount()
                 )
         );
     }

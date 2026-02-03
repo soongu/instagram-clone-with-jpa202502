@@ -1,8 +1,12 @@
 package com.example.instagramclone.repository.custom;
 
+import com.example.instagramclone.domain.follow.entity.QFollow;
+import com.example.instagramclone.domain.member.dto.response.MemberWithStatsDto;
 import com.example.instagramclone.domain.member.entity.Member;
+import com.example.instagramclone.domain.post.entity.QPost;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberTemplate;
@@ -12,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static com.example.instagramclone.domain.follow.entity.QFollow.follow;
 import static com.example.instagramclone.domain.member.entity.QMember.member;
@@ -48,9 +53,9 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
         return member.id.ne(currentUserId)
                 .and(member.id.notIn(
                         JPAExpressions
-                                .select(follow.follower.id)
+                                .select(follow.fromMember.id)
                                 .from(follow)
-                                .where(follow.following.id.eq(currentUserId))
+                                .where(follow.toMember.id.eq(currentUserId))
                 ));
     }
 
@@ -72,5 +77,24 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                 .set(member.updatedAt, LocalDateTime.now())
                 .where(member.username.eq(username))
                 .execute();
+    }
+
+    @Override
+    public Optional<MemberWithStatsDto> findMemberWithStats(String targetUsername, String loginUsername) {
+
+        return Optional.ofNullable(queryFactory
+                .select(Projections.constructor(MemberWithStatsDto.class,
+                        member,
+                        JPAExpressions.select(post.count()).from(post).where(post.member.eq(member)),
+                        JPAExpressions.select(follow.count()).from(follow).where(follow.toMember.eq(member)),
+                        JPAExpressions.select(follow.count()).from(follow).where(follow.fromMember.eq(member)),
+                        JPAExpressions.selectOne().from(follow)
+                                .where(follow.fromMember.username.eq(loginUsername)
+                                        .and(follow.toMember.username.eq(targetUsername)))
+                                .exists()
+                ))
+                .from(member)
+                .where(member.username.eq(targetUsername))
+                .fetchOne());
     }
 }

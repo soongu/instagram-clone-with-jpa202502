@@ -9,8 +9,8 @@ import lombok.Getter;
 public class FollowStatusResponse {
 
     private boolean following; // 팔로잉 여부
-    private long followerCount; // 팔로워 수
-    private long followingCount; // 팔로잉 수
+    private long followerCount; // 팔로워 수 (나를 팔로우하는 사람)
+    private long followingCount; // 팔로잉 수 (내가 팔로우하는 사람)
 
     public static FollowStatusResponse of(boolean following, long followerCount, long followingCount) {
         return FollowStatusResponse.builder()

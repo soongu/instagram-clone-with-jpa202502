@@ -20,7 +20,7 @@ public interface FollowRepository extends JpaRepository<Follow, Long>, FollowRep
 //            , @Param("followingId") Long followingId
 //    );
 
-    void deleteByFollowerIdAndFollowingId(Long followerId, Long followingId);
+    void deleteByFromMemberIdAndToMemberId(Long fromMemberId, Long toMemberId);
 
     // 팔로우 여부 확인
 //    boolean doesFollowExist(
@@ -28,7 +28,7 @@ public interface FollowRepository extends JpaRepository<Follow, Long>, FollowRep
 //            , @Param("followingId") Long followingId
 //    );
 
-    boolean existsByFollowerIdAndFollowingId(Long followerId, Long followingId);
+    boolean existsByFromMemberIdAndToMemberId(Long fromMemberId, Long toMemberId);
 
     /**
      * 특정 유저의 팔로워 수 / 팔로잉 수 조회

@@ -11,46 +11,46 @@ import java.time.LocalDateTime;
 @Table(
         name = "follows",
         indexes = {
-                @Index(name = "idx_follows_follower", columnList = "follower_id"),
-                @Index(name = "idx_follows_following", columnList = "following_id")
+                @Index(name = "idx_follows_from_member", columnList = "from_member_id"),
+                @Index(name = "idx_follows_to_member", columnList = "to_member_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "unique_follow",
-                        columnNames = {"follower_id", "following_id"}
+                        columnNames = {"from_member_id", "to_member_id"}
                 )
         }
 )
 @Getter @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@ToString(exclude = {"follower", "following"})
+@ToString(exclude = {"fromMember", "toMember"})
 public class Follow {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "follower_id", nullable = false)
-    private Member follower; // 팔로우를 받는 사용자 (팔로워)
+    @JoinColumn(name = "from_member_id", nullable = false)
+    private Member fromMember; // 팔로우를 하는 사용자 (Follower)
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "following_id", nullable = false)
-    private Member following; // 팔로우를 하는 사용자 (팔로잉)
+    @JoinColumn(name = "to_member_id", nullable = false)
+    private Member toMember; // 팔로우를 받는 사용자 (Following)
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    private Follow(Member follower, Member following) {
-        this.follower = follower;
-        this.following = following;
+    private Follow(Member fromMember, Member toMember) {
+        this.fromMember = fromMember;
+        this.toMember = toMember;
     }
 
     // 정적 팩토리 메서드
-    public static Follow of(Member follower, Member following) {
+    public static Follow of(Member fromMember, Member toMember) {
         return Follow.builder()
-                .follower(follower)
-                .following(following)
+                .fromMember(fromMember)
+                .toMember(toMember)
                 .build();
     }
 }

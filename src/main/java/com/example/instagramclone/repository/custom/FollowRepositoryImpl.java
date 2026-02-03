@@ -19,8 +19,8 @@ public class FollowRepositoryImpl implements FollowRepositoryCustom {
         QFollow follow = QFollow.follow;
 
         BooleanExpression condition = type.equals("follower")
-                ? follow.follower.id.eq(userId)
-                : follow.following.id.eq(userId);
+                ? follow.toMember.id.eq(userId)
+                : follow.fromMember.id.eq(userId);
 
         Long count = queryFactory
                 .select(follow.count())
@@ -38,13 +38,13 @@ public class FollowRepositoryImpl implements FollowRepositoryCustom {
         QMember following = new QMember("following");
 
         BooleanExpression condition = type.equals("follower")
-                ? follow.follower.id.eq(userId)
-                : follow.following.id.eq(userId);
+                ? follow.toMember.id.eq(userId)
+                : follow.fromMember.id.eq(userId);
 
         return queryFactory
                 .selectFrom(follow)
-                .join(follow.follower, follower).fetchJoin()
-                .join(follow.following, following).fetchJoin()
+                .join(follow.fromMember, follower).fetchJoin()
+                .join(follow.toMember, following).fetchJoin()
                 .where(condition)
                 .orderBy(follow.createdAt.desc())
                 .fetch();
@@ -63,14 +63,14 @@ public class FollowRepositoryImpl implements FollowRepositoryCustom {
                 // targetUser의 팔로워들 inner join
                 .innerJoin(followTarget)
                 .on(
-                        followTarget.follower.eq(member),
-                        followTarget.following.id.eq(targetUserId)
+                        followTarget.fromMember.eq(member),
+                        followTarget.toMember.id.eq(targetUserId)
                 )
                 // currentUser의 팔로워들 inner join
                 .innerJoin(followCurrent)
                 .on(
-                        followCurrent.follower.eq(member),
-                        followCurrent.following.id.eq(currentUserId)
+                        followCurrent.fromMember.eq(member),
+                        followCurrent.toMember.id.eq(currentUserId)
                 )
                 .fetch();
     }

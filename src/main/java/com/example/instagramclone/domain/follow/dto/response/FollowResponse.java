@@ -21,7 +21,7 @@ public class FollowResponse {
 
     public static FollowResponse of(Follow follow, boolean isFollowing, FollowStatus type) {
         if (type == FOLLOWER) {
-            Member follower = follow.getFollowing();
+            Member follower = follow.getFromMember();
             return FollowResponse.builder()
                     .username(follower.getUsername())
                     .name(follower.getName())
@@ -29,7 +29,7 @@ public class FollowResponse {
                     .following(isFollowing)
                     .build();
         } else {
-            Member following = follow.getFollower();
+            Member following = follow.getToMember();
             return FollowResponse.builder()
                     .username(following.getUsername())
                     .name(following.getName())

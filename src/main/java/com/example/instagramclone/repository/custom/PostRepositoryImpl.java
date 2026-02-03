@@ -94,9 +94,9 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 .from(post)
                 .where(post.member.id.in(
                                         JPAExpressions
-                                                .select(follow.follower.id)
+                                                .select(follow.toMember.id)
                                                 .from(follow)
-                                                .where(follow.following.id.eq(memberId))
+                                                .where(follow.fromMember.id.eq(memberId))
                                 )
                                 .or(post.member.id.eq(memberId))
                 )

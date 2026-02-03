@@ -1,7 +1,9 @@
 package com.example.instagramclone.controller.rest;
 
+import com.example.instagramclone.constant.ProfileConstants;
 import com.example.instagramclone.domain.member.dto.response.MeResponse;
 import com.example.instagramclone.domain.member.dto.response.ProfileHeaderResponse;
+import com.example.instagramclone.domain.member.dto.response.ProfileImageUpdateResponse;
 import com.example.instagramclone.domain.post.dto.response.ProfilePostResponse;
 import com.example.instagramclone.service.ProfileService;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profiles")
@@ -57,15 +58,15 @@ public class ProfileController {
 
     // 프로필 사진 업로드 API
     @PutMapping("/profile-image")
-    public ResponseEntity<?> updateProfile(
+    public ResponseEntity<ProfileImageUpdateResponse> updateProfile(
             @AuthenticationPrincipal String username,
             @RequestParam MultipartFile profileImage
     ) {
         String imageUrl = profileService.updateProfileImage(profileImage, username);
 
-        return ResponseEntity.ok().body(Map.of(
-                "imageUrl", imageUrl,
-                "message", "image upload success"
+        return ResponseEntity.ok().body(ProfileImageUpdateResponse.of(
+                imageUrl,
+                ProfileConstants.IMAGE_UPLOAD_SUCCESS_MESSAGE
         ));
     }
 
