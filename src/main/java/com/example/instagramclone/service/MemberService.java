@@ -1,8 +1,10 @@
 package com.example.instagramclone.service;
 
+import com.example.instagramclone.constant.AuthConstants;
 import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
 import com.example.instagramclone.domain.member.dto.response.DuplicateCheckResponse;
+import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.ErrorCode;
 import com.example.instagramclone.exception.MemberException;
@@ -11,10 +13,10 @@ import com.example.instagramclone.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.instagramclone.constant.AuthConstants;
+
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -29,7 +31,25 @@ public class MemberService {
 
     // 회원가입 중간처리
     public void signUp(SignUpRequest signUpRequest) {
+        
+        // Race condition 및 중복 방지를 위한 검증 로직 추출
+        validateDuplicateMember(signUpRequest);
 
+        // 순수 비밀번호를 꺼내서 암호화
+        String rawPassword = signUpRequest.getPassword();
+        // 암호화된 패스워드
+        String encodedPassword = passwordEncoder.encode(rawPassword);
+
+        // 회원정보를 엔터티로 변환
+        Member newMember = signUpRequest.toEntity();
+        // 패스워드를 인코딩패스워드로 교체
+        newMember.setPassword(encodedPassword);
+
+        // DB에 전송
+        memberRepository.save(newMember);
+    }
+
+    private void validateDuplicateMember(SignUpRequest signUpRequest) {
         /*
             Race condition 방지
 
@@ -54,19 +74,6 @@ public class MemberService {
                 .ifPresent(m -> {
                     throw new MemberException(ErrorCode.DUPLICATE_USERNAME);
                 });
-
-        // 순수 비밀번호를 꺼내서 암호화
-        String rawPassword = signUpRequest.getPassword();
-        // 암호화된 패스워드
-        String encodedPassword = passwordEncoder.encode(rawPassword);
-
-        // 회원정보를 엔터티로 변환
-        Member newMember = signUpRequest.toEntity();
-        // 패스워드를 인코딩패스워드로 교체
-        newMember.setPassword(encodedPassword);
-
-        // DB에 전송
-        memberRepository.save(newMember);
     }
 
     /**
@@ -78,21 +85,20 @@ public class MemberService {
     public DuplicateCheckResponse checkDuplicate(String type, String value) {
         switch (type) {
             case "email":
-                // 중복된 경우를 클라이언트에게 알려야 함
-                return memberRepository.findByEmail(value)
-                        .map(m -> DuplicateCheckResponse.unavailable("이미 사용 중인 이메일입니다."))
-                        .orElse(DuplicateCheckResponse.available());
+                return convertResponse(memberRepository.findByEmail(value), "이미 사용 중인 이메일입니다.");
             case "phone":
-                return memberRepository.findByPhone(value)
-                        .map(m -> DuplicateCheckResponse.unavailable("이미 사용 중인 전화번호입니다."))
-                        .orElse(DuplicateCheckResponse.available());
+                return convertResponse(memberRepository.findByPhone(value), "이미 사용 중인 전화번호입니다.");
             case "username":
-                return memberRepository.findByUsername(value)
-                        .map(m -> DuplicateCheckResponse.unavailable("이미 사용 중인 사용자 이름입니다."))
-                        .orElse(DuplicateCheckResponse.available());
+                return convertResponse(memberRepository.findByUsername(value), "이미 사용 중인 사용자 이름입니다.");
             default:
                 throw new MemberException(ErrorCode.INVALID_SIGNUP_DATA);
         }
+    }
+
+    private DuplicateCheckResponse convertResponse(Optional<Member> memberToCheck, String errorMessage) {
+        return memberToCheck
+                .map(m -> DuplicateCheckResponse.unavailable(errorMessage))
+                .orElse(DuplicateCheckResponse.available());
     }
 
     // 로그인 처리 (인증 처리)
@@ -109,12 +115,9 @@ public class MemberService {
         // 로그인 시도하는 계정명 (이메일, 전화번호, 사용자이름)
         String username = loginRequest.getUsername();
 
-        Member foundMember = memberRepository.findByUsername(username)
-                .orElseGet(() -> memberRepository.findByEmail(username)
-                        .orElseGet(() -> memberRepository.findByPhone(username)
-                                .orElseThrow(
-                                        () -> new MemberException(ErrorCode.MEMBER_NOT_FOUND)
-                                )));
+        // 3번의 쿼리 가능성을 1번의 쿼리로 통합
+        Member foundMember = memberRepository.findByUsernameOrEmailOrPhone(username, username, username)
+                .orElseThrow(() -> new MemberException(ErrorCode.MEMBER_NOT_FOUND));
 
         // 사용자가 입력한 패스워드와 DB에 저장된 패스워드를 추출
         String inputPassword = loginRequest.getPassword();

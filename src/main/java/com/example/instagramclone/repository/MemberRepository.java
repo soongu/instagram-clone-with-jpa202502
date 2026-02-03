@@ -2,11 +2,8 @@ package com.example.instagramclone.repository;
 
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.repository.custom.MemberRepositoryCustom;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
 import java.util.Optional;
 
 //@Mapper
@@ -20,6 +17,9 @@ public interface MemberRepository
     Optional<Member> findByEmail(String email);
     Optional<Member> findByPhone(String phone);
     Optional<Member> findByUsername(String username);
+
+    // 통합 조회 메서드 (로그인용)
+    Optional<Member> findByUsernameOrEmailOrPhone(String username, String email, String phone);
 
     // 이메일 존재 여부 확인
     boolean existsByEmail(String email);
