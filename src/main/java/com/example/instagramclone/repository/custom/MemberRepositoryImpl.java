@@ -1,9 +1,7 @@
 package com.example.instagramclone.repository.custom;
 
-import com.example.instagramclone.domain.follow.entity.QFollow;
 import com.example.instagramclone.domain.member.dto.response.MemberWithStatsDto;
 import com.example.instagramclone.domain.member.entity.Member;
-import com.example.instagramclone.domain.post.entity.QPost;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
@@ -53,9 +51,9 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
         return member.id.ne(currentUserId)
                 .and(member.id.notIn(
                         JPAExpressions
-                                .select(follow.fromMember.id)
+                                .select(follow.toMember.id)
                                 .from(follow)
-                                .where(follow.toMember.id.eq(currentUserId))
+                                .where(follow.fromMember.id.eq(currentUserId))
                 ));
     }
 
