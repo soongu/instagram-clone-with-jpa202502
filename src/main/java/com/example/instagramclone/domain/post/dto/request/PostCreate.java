@@ -1,5 +1,6 @@
 package com.example.instagramclone.domain.post.dto.request;
 
+import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.domain.post.entity.Post;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -21,9 +22,10 @@ public class PostCreate {
     private List<MultipartFile> images;
 
     // 엔터티 변환 편의메서드
-    public Post toEntity() {
+    public Post toEntity(Member member) {
         return Post.builder()
                 .content(this.content)
+                .member(member)
                 .build();
     }
 }

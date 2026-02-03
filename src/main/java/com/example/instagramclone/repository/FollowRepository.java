@@ -2,11 +2,8 @@ package com.example.instagramclone.repository;
 
 import com.example.instagramclone.domain.follow.entity.Follow;
 import com.example.instagramclone.repository.custom.FollowRepositoryCustom;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
 
 //@Mapper
 public interface FollowRepository extends JpaRepository<Follow, Long>, FollowRepositoryCustom {

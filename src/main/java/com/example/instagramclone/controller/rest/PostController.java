@@ -2,6 +2,7 @@ package com.example.instagramclone.controller.rest;
 
 import com.example.instagramclone.domain.post.dto.request.PostCreate;
 import com.example.instagramclone.domain.post.dto.response.FeedResponse;
+import com.example.instagramclone.domain.post.dto.response.PostCreateResponse;
 import com.example.instagramclone.domain.post.dto.response.PostDetailResponse;
 import com.example.instagramclone.domain.post.dto.response.PostResponse;
 import com.example.instagramclone.exception.ErrorCode;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/posts")
@@ -66,15 +67,10 @@ public class PostController {
         // 이미지와 JSON을 서비스클래스로 전송
         Long postId = postService.createFeed(postCreate, username);
 
-        // 응답 메시지 JSON 생성 { "id": 23, "message": "save success" }
-        Map<String, Object> response = Map.of(
-                "id", postId
-                , "message", "save success"
-        );
-
+        // 응답 메시지 JSON 생성
         return ResponseEntity
                 .ok()
-                .body(response);
+                .body(PostCreateResponse.of(postId));
     }
 
     // 피드 상세보기 단일 조회 API

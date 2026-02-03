@@ -27,12 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional
 public class PostService {
 
     private final PostRepository postRepository; // db에 피드내용 저장, 이미지저장
@@ -51,13 +53,6 @@ public class PostService {
     @Transactional(readOnly = true)
     public FeedResponse<PostResponse> findAllFeeds(String username, int size, int page) {
 
-        // offset은 size에 따라 숫자가 바뀜
-        /*
-            size = 5   ->   offset  0, 5, 10, 15, 20
-            size = 3   ->   offset  0, 3, 6, 9, 12, 15
-         */
-        int offset = (page - 1) * size;
-
         Member foundMember = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new MemberException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -72,28 +67,43 @@ public class PostService {
                 ? postRepository.findFeedPosts(foundMember.getId(), pageable)
                 : postRepository.findRecommendedPosts(pageable);
 
-        // 전체 피드 조회 - 사이즈를 하나 더 크게 조회하여 다음 데이터가 있는지 체크
-        List<PostResponse> feedList = posts.getContent()
+        List<Post> postList = posts.getContent();
+        List<Long> postIds = postList.stream().map(Post::getId).collect(Collectors.toList());
+
+        // Batch 1: 좋아요 여부 일괄 조회
+        Set<Long> likedPostIds = postLikeRepository.findByMemberIdAndPostIdIn(foundMember.getId(), postIds)
                 .stream()
+                .map(pl -> pl.getPost().getId())
+                .collect(Collectors.toSet());
+
+        // Batch 2: 좋아요 수 일괄 조회
+        // List<Object[]> -> Map<Long, Long> (postId -> count)
+        Map<Long, Long> likeCounts = postLikeRepository.countLikesByPostIdIn(postIds).stream()
+                .collect(Collectors.toMap(
+                        obj -> (Long) obj[0],
+                        obj -> (Long) obj[1]
+                ));
+
+        // Batch 3: 댓글 수 일괄 조회
+        Map<Long, Long> commentCounts = commentRepository.countCommentsByPostIdIn(postIds).stream()
+                .collect(Collectors.toMap(
+                        obj -> (Long) obj[0],
+                        obj -> (Long) obj[1]
+                ));
+
+        // 전체 피드 조회 - 사이즈를 하나 더 크게 조회하여 다음 데이터가 있는지 체크
+        List<PostResponse> feedList = postList.stream()
                 .map(feed -> {
-                    LikeStatusResponse likeStatus = LikeStatusResponse.of(
-                            postLikeRepository.findByPostIdAndMemberId(feed.getId(), foundMember.getId()).isPresent()
-                            , postLikeRepository.countByPostId(feed.getId())
-                    );
-                    long commentCount = commentRepository.countByPostId(feed.getId());
+                    long postId = feed.getId();
+                    boolean isLiked = likedPostIds.contains(postId);
+                    long likeCount = likeCounts.getOrDefault(postId, 0L);
+                    long commentCount = commentCounts.getOrDefault(postId, 0L);
+
+                    LikeStatusResponse likeStatus = LikeStatusResponse.of(isLiked, likeCount);
                     return PostResponse.of(feed, likeStatus, commentCount);
                 })
                 .collect(Collectors.toList());
 
-        // 다음 페이지가 존재하는지 여부 확인
-        // 클라이언트가 요구한 개수보다 많이 조회되었다면
-//        boolean hasNext = feedList.size() > size;
-
-        // 클라이언트에게 다음 페이지 데이터가 있는게 확인되었다면
-        // size + 1개를 반환하면 안된다. 마지막 데이터를 지우고 반환
-//        if (hasNext) {
-//            feedList.remove(feedList.size() - 1);
-//        }
 
         return FeedResponse.of(feedList, posts.hasNext());
 
@@ -101,7 +111,6 @@ public class PostService {
 
 
     // 피드 생성 DB에 가기 전 후 중간처리
-    @Transactional
     public Long createFeed(PostCreate postCreate, String username) {
 
         // 유저의 이름을 통해 해당 유저의 ID를 구함
@@ -110,11 +119,8 @@ public class PostService {
                         () -> new MemberException(ErrorCode.MEMBER_NOT_FOUND)
                 );
 
-        // entity 변환
-        Post post = postCreate.toEntity();
-
-        // 사용자의 ID를 세팅해줘야 함 <- 이걸 어케구함?
-        post.setMember(foundMember);
+        // entity 변환 (Member 주입)
+        Post post = postCreate.toEntity(foundMember);
 
         // 피드게시물을 posts테이블에 insert
         postRepository.save(post);
@@ -131,62 +137,69 @@ public class PostService {
         return postId;
     }
 
-    // 해시태그 관련 처리 메서드
     private void processHashtags(Post post) {
         // 1. 피드 내용에서 해시태그들을 모두 추출 (중복없이)
         Set<String> hashtagNames = hashtagUtil.extractHashtags(post.getContent());
 
-        // 2. 해시태그들이 최초등장한 해시태그면 데이터베이스에 저장
-        //  단, 이미 존재하는 해시태그라면 기존의 해시태그를 조회해서 가져옴
-        hashtagNames.forEach(hashtagName -> {
+        if (hashtagNames.isEmpty()) {
+            return;
+        }
 
-            // 일단 해시태그가 저장되어있는지 여부를 확인 - 조회해봄
-            Hashtag foundHashtag = hashtagRepository.findByName(hashtagName)
-                    .orElseGet(() -> {
-                        Hashtag newHashtag = Hashtag.builder().name(hashtagName).build();
-                        hashtagRepository.save(newHashtag);
-                        log.debug("new hashtag saved: {}", hashtagName);
-                        return newHashtag;
-                    }) // 일단 조회해보고 없으면(null)~~~ 대체적으로 뭘할지
-                    ;
+        // 2. 기존 해시태그 조회 (Batch Select)
+        List<Hashtag> existingHashtags = hashtagRepository.findByNameIn(hashtagNames);
+        
+        // 3. 새로운 해시태그 필터링 및 저장 (Batch Insert)
+        Set<String> existingNames = existingHashtags.stream()
+                .map(Hashtag::getName)
+                .collect(Collectors.toSet());
 
-            // 3. 해시태그와 피드를 연결해서 연결테이블에 저장
-            PostHashtag postHashtag = PostHashtag.builder()
-                    .post(post)
-                    .hashtag(foundHashtag)
-                    .build();
+        List<Hashtag> newHashtags = hashtagNames.stream()
+                .filter(name -> !existingNames.contains(name))
+                .map(name -> Hashtag.builder().name(name).build())
+                .collect(Collectors.toList());
 
-            postHashtagRepository.save(postHashtag);
-            log.debug("post hashtag saved: {}", postHashtag);
+        if (!newHashtags.isEmpty()) {
+            hashtagRepository.saveAll(newHashtags);
+            existingHashtags.addAll(newHashtags);
+        }
 
-        });
+        // 4. PostHashtag 연결 (Batch Insert)
+        List<PostHashtag> postHashtags = existingHashtags.stream()
+                .map(hashtag -> PostHashtag.builder()
+                        .post(post)
+                        .hashtag(hashtag)
+                        .build())
+                .collect(Collectors.toList());
 
+        postHashtagRepository.saveAll(postHashtags);
+        log.debug("saved {} post hashtags", postHashtags.size());
     }
 
     private void processImages(List<MultipartFile> images, Post post) {
 
         log.debug("start process Image!!");
-        // 이미지들을 서버(/upload 폴더)에 저장
-        if (images != null && !images.isEmpty()) {
-            log.debug("save process Image!!");
-
-            int order = 1; // 이미지 순서
-            for (MultipartFile image : images) {
-                // 파일 서버에 저장
-                String uploadedUrl = fileUploadUtil.saveFile(image);
-
-                log.debug("success to save file at: {}", uploadedUrl);
-                // 이미지들을 데이터베이스 post_images 테이블에 insert
-                PostImage postImage = PostImage.builder()
-                        .post(post)
-                        .imageUrl(uploadedUrl)
-                        .imageOrder(order++)
-                        .build();
-
-                postImageRepository.save(postImage);
-            }
+        if (images == null || images.isEmpty()) {
+            return;
         }
 
+        // 이미지 파일 저장 및 PostImage 리스트 생성
+        int[] order = {1}; // Effectively final trick
+        List<PostImage> postImages = images.stream()
+                .map(image -> {
+                    String uploadedUrl = fileUploadUtil.saveFile(image);
+                    log.debug("success to save file at: {}", uploadedUrl);
+                    
+                    return PostImage.builder()
+                            .post(post)
+                            .imageUrl(uploadedUrl)
+                            .imageOrder(order[0]++)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        // Batch Insert
+        postImageRepository.saveAll(postImages);
+        log.debug("saved {} post images", postImages.size());
     }
 
     // 피드 단일 조회 처리
@@ -197,7 +210,8 @@ public class PostService {
                         () -> new PostException(ErrorCode.POST_NOT_FOUND)
                 );
 
-        Member foundMember = memberRepository.findByUsername(username).orElseThrow();
+        Member foundMember = memberRepository.findByUsername(username)
+                .orElseThrow(() -> new MemberException(ErrorCode.MEMBER_NOT_FOUND));
 
         // 좋아요 상태
         LikeStatusResponse likeStatus = LikeStatusResponse.of(
