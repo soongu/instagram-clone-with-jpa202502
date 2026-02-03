@@ -1,6 +1,7 @@
 package com.example.instagramclone.controller.rest;
 
 import com.example.instagramclone.domain.follow.dto.response.FollowResponse;
+import com.example.instagramclone.domain.follow.dto.response.FollowToggleResponse;
 import com.example.instagramclone.service.FollowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,7 +10,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.example.instagramclone.domain.follow.dto.response.FollowStatus.FOLLOWER;
 import static com.example.instagramclone.domain.follow.dto.response.FollowStatus.FOLLOWING;
@@ -22,18 +22,18 @@ public class FollowController {
 
     private final FollowService followService;
 
-    // 팔로우 / 언팔로우 토글 API
+    // 팔로우 / 언팔로우 토글
     @PostMapping("/{followerName}")
-    public ResponseEntity<?> toggleFollow(
+    public ResponseEntity<FollowToggleResponse> toggleFollow(
             @PathVariable String followerName
             , @AuthenticationPrincipal String followingName
     ) {
 
         log.info("{} toggled follow status for {}", followingName, followerName);
 
-        Map<String, Object> responseMap = followService.toggleFollow(followingName, followerName);
+        FollowToggleResponse response = followService.toggleFollow(followingName, followerName);
 
-        return ResponseEntity.ok().body(responseMap);
+        return ResponseEntity.ok().body(response);
     }
 
     // 팔로워 리스트 조회 API
