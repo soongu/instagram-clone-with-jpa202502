@@ -181,8 +181,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
                 SELECT
                     p.id,
                     pi.image_url           AS mainThumbnail,
-                    NVL(l.likeCount, 0)    AS likeCount,
-                    NVL(c.commentCount, 0) AS commentCount
+                    COALESCE(l.likeCount, 0)    AS likeCount,
+                    COALESCE(c.commentCount, 0) AS commentCount
                 FROM posts p
                 INNER JOIN post_hashtags ph ON p.id = ph.post_id
                 INNER JOIN (
@@ -220,8 +220,8 @@ public class PostRepositoryImpl implements PostRepositoryCustom {
             SELECT
                 p.id,
                 pi.image_url as mainThumbnail,
-                NVL(l.likeCount, 0) AS likeCount,
-                NVL(c.commentCount, 0) AS commentCount
+                COALESCE(l.likeCount, 0) AS likeCount,
+                COALESCE(c.commentCount, 0) AS commentCount
             FROM posts p
             INNER JOIN (
                 SELECT post_id, image_url
