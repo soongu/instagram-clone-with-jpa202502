@@ -9,9 +9,12 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.ArrayList;
 import java.util.Date;
 
 // 인증을 위한 토큰을 생성하여 발급하고
@@ -78,6 +81,16 @@ public class JwtTokenProvider {
             return false;
         }
      }
+
+    /**
+     * 토큰에서 Authentication 객체를 생성하여 반환하는 메서드
+     * @param token JWT 토큰
+     * @return Authentication 인증 객체
+     */
+    public Authentication getAuthentication(String token) {
+        String username = getCurrentLoginUsername(token);
+        return new UsernamePasswordAuthenticationToken(username, null, new ArrayList<>());
+    }
 
     /**
      * 검증된 토큰에서 사용자이름을 추출하는 메서드

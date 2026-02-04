@@ -20,23 +20,13 @@ public class FollowResponse {
     private boolean following; // 현재 로그인한 사용자 기준 이 사람을 팔로우하는 여부
 
     public static FollowResponse of(Follow follow, boolean isFollowing, FollowStatus type) {
-        if (type == FOLLOWER) {
-            Member follower = follow.getFromMember();
-            return FollowResponse.builder()
-                    .username(follower.getUsername())
-                    .name(follower.getName())
-                    .profileImageUrl(follower.getProfileImageUrl())
-                    .following(isFollowing)
-                    .build();
-        } else {
-            Member following = follow.getToMember();
-            return FollowResponse.builder()
-                    .username(following.getUsername())
-                    .name(following.getName())
-                    .profileImageUrl(following.getProfileImageUrl())
-                    .following(isFollowing)
-                    .build();
-        }
+        Member targetMember = (type == FOLLOWER) ? follow.getFromMember() : follow.getToMember();
 
+        return FollowResponse.builder()
+                .username(targetMember.getUsername())
+                .name(targetMember.getName())
+                .profileImageUrl(targetMember.getProfileImageUrl())
+                .following(isFollowing)
+                .build();
     }
 }
