@@ -21,7 +21,7 @@ public class PostLikeController {
 
     // 좋아요 토글 API
     @PostMapping("/{postId}/likes")
-    public ResponseEntity<?> toggleLike(
+    public ResponseEntity<LikeStatusResponse> toggleLike(
             @PathVariable Long postId,
             @AuthenticationPrincipal String username
     ) {

@@ -36,20 +36,21 @@ public class PostLikeService {
 
         Long memberId = foundMember.getId();
 
-        boolean isLiked;
-        if (isLiked(postId, memberId)) {   // 이미 좋아요를 눌렀다면
-            // 좋아요를 삭제
-            postLikeRepository.deleteByPostIdAndMemberId(postId, memberId);
-            isLiked = false;
-        } else {
-            // 좋아요를 생성
-            postLikeRepository.save(PostLike.of(foundPost, foundMember));
-            isLiked = true;
-        }
+        boolean isLiked = postLikeRepository.findByPostIdAndMemberId(postId, memberId)
+                .map(like -> {
+                    postLikeRepository.delete(like);
+                    foundPost.decreaseLikeCount(); // Dirty Checking
+                    return false;
+                })
+                .orElseGet(() -> {
+                    postLikeRepository.save(PostLike.of(foundPost, foundMember));
+                    foundPost.increaseLikeCount(); // Dirty Checking
+                    return true;
+                });
 
         return LikeStatusResponse.of(
                 isLiked
-                , postLikeRepository.countByPostId(postId)
+                , foundPost.getLikeCount()
         );
     }
 

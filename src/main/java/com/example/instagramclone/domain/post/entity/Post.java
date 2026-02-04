@@ -35,9 +35,15 @@ public class Post {
     @Column(name = "view_count", nullable = false)
     private int viewCount;
 
+    @Column(name = "like_count", nullable = false)
+    private Long likeCount;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Version
+    private Long version;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
@@ -67,6 +73,15 @@ public class Post {
         this.content = content;
         this.member = member;
         this.viewCount = 0;
+        this.likeCount = 0L;
+    }
+
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        this.likeCount = Math.max(0, this.likeCount - 1);
     }
 }
 

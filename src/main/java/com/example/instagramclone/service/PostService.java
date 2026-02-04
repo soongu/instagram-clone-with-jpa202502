@@ -76,13 +76,8 @@ public class PostService {
                 .map(pl -> pl.getPost().getId())
                 .collect(Collectors.toSet());
 
-        // Batch 2: 좋아요 수 일괄 조회
-        // List<Object[]> -> Map<Long, Long> (postId -> count)
-        Map<Long, Long> likeCounts = postLikeRepository.countLikesByPostIdIn(postIds).stream()
-                .collect(Collectors.toMap(
-                        obj -> (Long) obj[0],
-                        obj -> (Long) obj[1]
-                ));
+        // Batch 2: 좋아요 수 일괄 조회 - Post.likeCount 필드로 대체되어 삭제됨
+        // Map<Long, Long> likeCounts = ...
 
         // Batch 3: 댓글 수 일괄 조회
         Map<Long, Long> commentCounts = commentRepository.countCommentsByPostIdIn(postIds).stream()
@@ -96,7 +91,7 @@ public class PostService {
                 .map(feed -> {
                     long postId = feed.getId();
                     boolean isLiked = likedPostIds.contains(postId);
-                    long likeCount = likeCounts.getOrDefault(postId, 0L);
+                    long likeCount = feed.getLikeCount(); // Denormalization 최적화
                     long commentCount = commentCounts.getOrDefault(postId, 0L);
 
                     LikeStatusResponse likeStatus = LikeStatusResponse.of(isLiked, likeCount);
@@ -216,7 +211,7 @@ public class PostService {
         // 좋아요 상태
         LikeStatusResponse likeStatus = LikeStatusResponse.of(
                 postLikeRepository.findByPostIdAndMemberId(postId, foundMember.getId()).isPresent()
-                , postLikeRepository.countByPostId(postId)
+                , post.getLikeCount() // Denormalization 최적화
         );
 
         // 댓글 목록
