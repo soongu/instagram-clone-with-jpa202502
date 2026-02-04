@@ -43,7 +43,7 @@ public class Post {
     private LocalDateTime createdAt;
 
     @Version
-    private Long version;
+    private Long version = 0L;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
