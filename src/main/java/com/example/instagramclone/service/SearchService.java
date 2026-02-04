@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @Slf4j
 @RequiredArgsConstructor
 public class SearchService {
@@ -22,7 +22,6 @@ public class SearchService {
     private final FollowRepository followRepository;
 
     // 사용자 검색 기능
-    @Transactional(readOnly = true)
     public List<MemberSearchResponse> searchMembers(String keyword, String username) {
 
         // 로그인한 회원 조회

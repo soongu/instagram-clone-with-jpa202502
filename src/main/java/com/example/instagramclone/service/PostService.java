@@ -15,7 +15,6 @@ import com.example.instagramclone.exception.ErrorCode;
 import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.exception.PostException;
 import com.example.instagramclone.repository.*;
-import com.example.instagramclone.util.FileUploadUtil;
 import com.example.instagramclone.util.HashtagUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -34,7 +32,7 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class PostService {
 
     private final PostRepository postRepository; // db에 피드내용 저장, 이미지저장
@@ -46,11 +44,9 @@ public class PostService {
     private final PostHashtagRepository postHashtagRepository;
     private final PostImageRepository postImageRepository;
 
-    private final FileUploadUtil fileUploadUtil; // 로컬서버에 이미지 저장
     private final HashtagUtil hashtagUtil; // 해시태그 추출기
 
     // 피드 목록조회 중간처리
-    @Transactional(readOnly = true)
     public FeedResponse<PostResponse> findAllFeeds(String username, int size, int page) {
 
         Member foundMember = memberRepository.findByUsername(username)
@@ -106,7 +102,8 @@ public class PostService {
 
 
     // 피드 생성 DB에 가기 전 후 중간처리
-    public Long createFeed(PostCreate postCreate, String username) {
+    @Transactional
+    public Long createFeed(PostCreate postCreate, List<String> imageUrls, String username) {
 
         // 유저의 이름을 통해 해당 유저의 ID를 구함
         Member foundMember = memberRepository.findByUsername(username)
@@ -123,7 +120,7 @@ public class PostService {
         // 이미지 관련 처리를 모두 수행
         Long postId = post.getId();
 
-        processImages(postCreate.getImages(), post);
+        processImages(imageUrls, post);
 
         // 해시태그 관련 처리를 수행
         processHashtags(post);
@@ -170,26 +167,21 @@ public class PostService {
         log.debug("saved {} post hashtags", postHashtags.size());
     }
 
-    private void processImages(List<MultipartFile> images, Post post) {
+    private void processImages(List<String> imageUrls, Post post) {
 
         log.debug("start process Image!!");
-        if (images == null || images.isEmpty()) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
             return;
         }
 
         // 이미지 파일 저장 및 PostImage 리스트 생성
         int[] order = {1}; // Effectively final trick
-        List<PostImage> postImages = images.stream()
-                .map(image -> {
-                    String uploadedUrl = fileUploadUtil.saveFile(image);
-                    log.debug("success to save file at: {}", uploadedUrl);
-                    
-                    return PostImage.builder()
+        List<PostImage> postImages = imageUrls.stream()
+                .map(url -> PostImage.builder()
                             .post(post)
-                            .imageUrl(uploadedUrl)
+                            .imageUrl(url)
                             .imageOrder(order[0]++)
-                            .build();
-                })
+                            .build())
                 .collect(Collectors.toList());
 
         // Batch Insert
@@ -198,7 +190,6 @@ public class PostService {
     }
 
     // 피드 단일 조회 처리
-    @Transactional(readOnly = true)
     public PostDetailResponse getPostDetails(Long postId, String username) {
         Post post = postRepository.findPostDetailById(postId)
                 .orElseThrow(

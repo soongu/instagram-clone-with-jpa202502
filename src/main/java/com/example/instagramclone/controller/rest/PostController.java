@@ -8,6 +8,8 @@ import com.example.instagramclone.domain.post.dto.response.PostResponse;
 import com.example.instagramclone.exception.ErrorCode;
 import com.example.instagramclone.exception.PostException;
 import com.example.instagramclone.service.PostService;
+import com.example.instagramclone.util.FileUploadUtil;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
+    private final FileUploadUtil fileUploadUtil;
 
     // 피드 목록 조회 요청
     @GetMapping
@@ -61,11 +64,13 @@ public class PostController {
             log.info("uploaded image file name - {}", image.getOriginalFilename());
         });
 
-        postCreate.setImages(images);
-        log.info("feed create request: POST - {}", postCreate);
+        // 1. 파일 업로드 (Non-Transactional)
+        List<String> imageUrls = images.stream()
+                .map(fileUploadUtil::saveFile)
+                .toList();
 
-        // 이미지와 JSON을 서비스클래스로 전송
-        Long postId = postService.createFeed(postCreate, username);
+        // 2. 서비스 호출 (Transactional) - 이미지 URL 리스트 전달
+        Long postId = postService.createFeed(postCreate, imageUrls, username);
 
         // 응답 메시지 JSON 생성
         return ResponseEntity

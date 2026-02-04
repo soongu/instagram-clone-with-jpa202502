@@ -21,15 +21,16 @@ import java.util.stream.Collectors;
 import static com.example.instagramclone.domain.follow.dto.response.FollowStatus.*;
 
 @Service
-@Transactional
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class FollowService {
 
     private final FollowRepository followRepository;
     private final MemberRepository memberRepository;
 
     // 팔로우 / 언팔로우 토글
+    @Transactional
     public FollowToggleResponse toggleFollow(String followingUserName, String followerUserName) {
 
         // 자기 자신을 팔로우하는 것을 방지 (Fast-Fail)
@@ -69,7 +70,6 @@ public class FollowService {
 
 
     // 특정 유저의 팔로잉 / 팔로워 목록 조회
-    @Transactional(readOnly = true)
     public List<FollowResponse> getFollows(String targetUsername, String loginUsername, FollowStatus type) {
 
         Member foundMember = getMember(targetUsername);

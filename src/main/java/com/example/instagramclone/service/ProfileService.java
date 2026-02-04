@@ -22,7 +22,7 @@ import java.util.List;
 // 개인 프로필 처리
 @Service
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ProfileService {
 
@@ -36,7 +36,6 @@ public class ProfileService {
      * @param username - 인증된 사용자 이름 (스프링 시큐리티에 의해 컨트롤러에서 받아옴)
      * @return 인증된 사용자의 프로필정보 (이름, 사용자계정, 프로필사진)
      */
-    @Transactional(readOnly = true)   // SELECT만 하고 있을 경우
     public MeResponse getLoggedInUser(String username) {
         Member foundMember = getMember(username);
 
@@ -44,7 +43,6 @@ public class ProfileService {
     }
 
     // 프로필 페이지 상단 헤더에 사용할 데이터 가져오기
-    @Transactional(readOnly = true)
     public ProfileHeaderResponse getProfileHeader(String username, String loginUsername) {
 
         // 사용자 이름에 매칭되는 회원정보와 통계 데이터를 한 번에 조회
@@ -63,7 +61,6 @@ public class ProfileService {
     }
 
     // 프로필 페이지 피드 목록에 사용할 데이터 처리
-    @Transactional(readOnly = true)
     public List<ProfilePostResponse> findProfilePosts(String username) {
         return postRepository.findProfilePosts(getMember(username).getId());
 
@@ -77,6 +74,7 @@ public class ProfileService {
     }
 
     // 프로필 사진 처리
+    @Transactional
     public String updateProfileImage(MultipartFile profileImage, String username) {
         // 1. 프로필 사진 이미지 파일을 서버에 저장
         String uploadPath = fileUploadUtil.saveFile(profileImage);

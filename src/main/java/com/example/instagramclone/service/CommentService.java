@@ -16,7 +16,7 @@ import java.util.Map;
 
 @Service
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class CommentService {
 
@@ -25,6 +25,7 @@ public class CommentService {
     private final PostRepository postRepository;
 
     // 댓글 작성 처리
+    @Transactional
     public Map<String, Object> createComment(Long postId, String username, String content) {
 
         Member foundMember = memberRepository.findByUsername(username)

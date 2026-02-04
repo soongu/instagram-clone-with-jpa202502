@@ -20,7 +20,7 @@ import java.util.Optional;
 
 @Service
 @Slf4j
-@Transactional // 트랜잭션 처리
+@Transactional(readOnly = true) // 트랜잭션 처리
 @RequiredArgsConstructor
 public class MemberService {
 
@@ -30,6 +30,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
 
     // 회원가입 중간처리
+    @Transactional
     public void signUp(SignUpRequest signUpRequest) {
         
         // Race condition 및 중복 방지를 위한 검증 로직 추출
@@ -109,7 +110,6 @@ public class MemberService {
         3. 존재한다면 회원정보를 데이터베이스에서 받아와서 비밀번호를 꺼내옴
         4. 패스워드 일치를 검사
      */
-    @Transactional(readOnly = true)
     public LoginResponse authenticate(LoginRequest loginRequest) {
 
         // 로그인 시도하는 계정명 (이메일, 전화번호, 사용자이름)

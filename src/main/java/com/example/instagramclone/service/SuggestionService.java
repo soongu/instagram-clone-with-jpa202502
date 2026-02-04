@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class SuggestionService {
 

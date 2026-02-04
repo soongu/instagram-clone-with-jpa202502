@@ -18,7 +18,7 @@ import java.util.Optional;
 
 @Service
 @Slf4j
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class PostLikeService {
 
@@ -27,6 +27,7 @@ public class PostLikeService {
     private final PostRepository postRepository;
 
     // 좋아요 토글 기능 - 이미 좋아요를 누른 상태면 취소, 아니면 생성
+    @Transactional
     public LikeStatusResponse toggleLike(Long postId, String username) {
 
         Member foundMember = memberRepository.findByUsername(username)
@@ -55,7 +56,6 @@ public class PostLikeService {
     }
 
     // 좋아요 상태 확인
-    @Transactional(readOnly = true)
     public boolean isLiked(Long postId, Long memberId) {
         Optional<PostLike> result
                 = postLikeRepository.findByPostIdAndMemberId(postId, memberId);
