@@ -24,26 +24,40 @@ public class SuggestionJdbcRepository {
                 m.username,
                 m.name,
                 m.profile_image_url,
-                (SELECT COUNT(*) FROM follows f WHERE f.to_member_id = m.id) AS follower_count,
-                (SELECT COUNT(*) FROM posts p WHERE p.member_id = m.id) AS post_count,
-                (
-                    SELECT GROUP_CONCAT(common_m.username SEPARATOR ',')
-                    FROM follows f_target
-                    JOIN follows f_me ON f_target.from_member_id = f_me.to_member_id
-                    JOIN users common_m ON f_target.from_member_id = common_m.id
-                    WHERE f_target.to_member_id = m.id
-                      AND f_me.from_member_id = ?
+                COUNT(DISTINCT f_follower.from_member_id) AS follower_count,
+                COUNT(DISTINCT p.id)                     AS post_count,
+                GROUP_CONCAT(DISTINCT 
+                    CASE WHEN f_me.from_member_id = ? THEN common_m.username END
+                    ORDER BY common_m.username
+                    SEPARATOR ','
                 ) AS common_followers
             FROM users m
+            LEFT JOIN follows f_follower ON f_follower.to_member_id = m.id
+            LEFT JOIN posts p          ON p.member_id = m.id
+            LEFT JOIN follows f_target ON f_target.to_member_id = m.id
+            LEFT JOIN follows f_me     ON f_me.to_member_id = f_target.from_member_id
+                                      AND f_me.from_member_id = ?
+            LEFT JOIN users common_m   ON common_m.id = f_target.from_member_id
             WHERE m.id != ?
               AND m.id NOT IN (
-                  SELECT to_member_id FROM follows WHERE from_member_id = ?
+                  SELECT to_member_id 
+                  FROM follows 
+                  WHERE from_member_id = ?
               )
+            GROUP BY m.id, m.username, m.name, m.profile_image_url
             ORDER BY m.created_at DESC, post_count DESC
             LIMIT ?
         """;
 
-        return jdbcTemplate.query(sql, suggestionRowMapper(), currentMemberId, currentMemberId, currentMemberId, limit);
+        return jdbcTemplate.query(
+            sql,
+            suggestionRowMapper(),
+            currentMemberId,   // 1. common followers JOIN 조건
+            currentMemberId,   // 2. common followers JOIN 조건 (반복)
+            currentMemberId,   // 3. m.id != ?
+            currentMemberId,   // 4. NOT IN 서브쿼리
+            limit              // 5. LIMIT
+        );
     }
 
     private RowMapper<SuggestedMemberResponse> suggestionRowMapper() {
