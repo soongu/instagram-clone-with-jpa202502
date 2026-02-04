@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @Slf4j
@@ -175,13 +176,12 @@ public class PostService {
         }
 
         // 이미지 파일 저장 및 PostImage 리스트 생성
-        int[] order = {1}; // Effectively final trick
-        List<PostImage> postImages = imageUrls.stream()
-                .map(url -> PostImage.builder()
-                            .post(post)
-                            .imageUrl(url)
-                            .imageOrder(order[0]++)
-                            .build())
+        List<PostImage> postImages = IntStream.range(0, imageUrls.size())
+                .mapToObj(i -> PostImage.builder()
+                        .post(post)
+                        .imageUrl(imageUrls.get(i))
+                        .imageOrder(i + 1) // 0부터 시작하니 1을 더해줌
+                        .build())
                 .collect(Collectors.toList());
 
         // Batch Insert

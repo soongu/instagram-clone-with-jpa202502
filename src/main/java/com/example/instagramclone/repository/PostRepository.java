@@ -4,8 +4,6 @@ import com.example.instagramclone.domain.post.dto.response.ProfilePostResponse;
 import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.repository.custom.PostRepositoryCustom;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-
 import java.util.List;
 
 //@Mapper
