@@ -1,23 +1,17 @@
 package com.example.instagramclone.domain.member.dto.response;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class SignUpResponse {
 
     private String message;
     private String username;
 
-    public static SignUpResponse of(String message, String username) {
-        return SignUpResponse.builder()
-                .message(message)
-                .username(username)
-                .build();
-    }
+    // TODO: 1. 정적 팩토리 메소드 (of)를 만드세요
+    
 }
