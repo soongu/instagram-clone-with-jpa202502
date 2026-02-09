@@ -1,24 +1,73 @@
 package com.example.instagramclone.domain.member.entity;
 
+import com.example.instagramclone.domain.common.BaseEntity;
+import jakarta.persistence.*;
 import lombok.*;
 
-// TODO: 1. JPA Entity 설정을 추가하세요 (@Entity, @Table)
+@Entity
+@Table(name = "members")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Member {
+// @AllArgsConstructor 지양: 필드 순서 변경 시 위험
+public class Member extends BaseEntity {
 
-    // TODO: 2. ID 필드와 PK 설정을 추가하세요 (@Id, @GeneratedValue)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // TODO: 3. 컬럼 매핑과 제약조건을 설정하세요 (@Column)
+    @Column(nullable = false, unique = true, length = 30)
     private String username;
+
+    @Column(length = 100) // OAuth2 로그인 시 비밀번호가 없을 수 있으므로 nullable = true (기본값)
     private String password;
+
+    /*
+    Instagram 특성상 이메일 가입 또는 전화번호 가입이 가능하므로 Nullable
+    대신 "둘 중 하나는 반드시 존재해야 한다"는 검증 로직은 
+    DB 레벨이 아닌, 잠시 후 구현할 Service 레벨
+    (signUp 메서드)에서 수행
+    */
+    @Column(unique = true, length = 100) 
     private String email;
+
+    @Column(unique = true, length = 20) // Nullable (이메일로 가입한 경우)
     private String phone;
+
+    @Column(nullable = false, length = 50)
     private String name;
+
+    @Column(length = 255)
     private String profileImageUrl;
     
-    private String role;
+    @Enumerated(EnumType.STRING) // Enum은 반드시 STRING으로! (ORDINAL 금지: 순서 바뀌면 DB 꼬임)
+    @Column(nullable = false)
+    private MemberRole role;
+
+    // RefreshToken은 로그인 성공 후에 발급되므로, 회원가입 시점에는 없다.
+    // 따라서 생성자에는 포함하지 않고 별도로 업데이트 한다.
+    @Column(length = 512)
+    private String refreshToken;
+
+    @Builder
+    private Member(String username, String password, String email, String phone, String name, String profileImageUrl) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.phone = phone;
+        this.name = name;
+        this.profileImageUrl = profileImageUrl;
+        this.role = MemberRole.USER; // 기본값 강제 세팅: 가입 시엔 무조건 USER
+    }
+
+    // --- 비즈니스 로직 (도메인 메서드) ---
+    // Setter를 무분별하게 열어두기보다, 목적이 명확한 비즈니스 메서드를 제공하는 것이 좋다. (DDD)
     
-    // TODO: 4. Builder 패턴을 적용할 생성자를 만드세요
+    public void updateProfile(String name, String profileImageUrl) {
+        this.name = name;
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void updateRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
 }
