@@ -23,17 +23,16 @@ class PostLikeManager {
     this.$likeButton.onclick = async (e) => { 
       e.preventDefault();
       
-      // 서버에 좋아요 토글 요청 보내기
-      const response = await fetchWithAuth(`/api/posts/${this.postId}/likes`, {
-        method: 'POST'
-      });
-      if (!response.ok) {
+      try {
+        // 서버에 좋아요 토글 요청 보내기
+        const likeStatus = await fetchWithAuth(`/api/posts/${this.postId}/likes`, {
+          method: 'POST'
+        });
+        this.updateUI(likeStatus);
+
+      } catch (e) {
         alert('좋아요 처리 실패!');
-        return;
       }
-      const likeStatus = await response.json();
-      // console.log(likeStatus);
-      this.updateUI(likeStatus);
     };
     // 더블 클릭 이벤트 바인딩
     this.addDoubleClickLike();

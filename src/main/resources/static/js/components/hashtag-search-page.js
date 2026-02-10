@@ -51,16 +51,20 @@ async function loadFeeds() {
 
   await new Promise(r => setTimeout(r, 700));
 
-  const response = await fetchWithAuth(`/api/hashtags/${tagName}/posts?page=${currentPage}&size=9`);
+  try {
+    const { feedList, hasNext } = await fetchWithAuth(`/api/hashtags/${tagName}/posts?page=${currentPage}&size=9`);
 
-  const { feedList, hasNext } = await response.json();
+    renderFeeds(feedList);
 
-  renderFeeds(feedList);
-
-  hasNextPage = hasNext;
-  currentPage++;
-  isLoading = false;
-  loadingSpinner.style.display = 'none';
+    hasNextPage = hasNext;
+    currentPage++;
+    isLoading = false;
+    loadingSpinner.style.display = 'none';
+  } catch (e) {
+    console.error(e);
+    isLoading = false;
+    loadingSpinner.style.display = 'none';
+  }
 }
 
 function initInfiniteScroll() {

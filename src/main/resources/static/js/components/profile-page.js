@@ -111,8 +111,15 @@ async function initProfileHeader() {
   const username = getPageUsername();
 
   // 서버에서 프로필 헤더 정보 요청하기
-  const response = await fetchWithAuth(`/api/profiles/${username}`);
-  const profileHeader = await response.json();
+  try {
+    const profileHeader = await fetchWithAuth(`/api/profiles/${username}`);
+    // console.log('profile header data: ', profileHeader);
+
+    // 렌더링 진행
+    renderProfileHeader(profileHeader);
+  } catch (e) {
+    alert('프로필 정보를 불러오는데 실패했습니다.');
+  }
 
   // console.log('profile header data: ', profileHeader);
 
@@ -150,14 +157,13 @@ function renderProfileFeeds(feedList) {
 // 프로필 페이지 피드 목록 렌더링 (메인 썸네일, 좋아요 수, 댓글 수 등)
 async function initProfileFeeds() {
   const username = getPageUsername();
-  const response = await fetchWithAuth(`/api/profiles/${username}/posts`);
-
-  if (!response.ok) {
+  try {
+    const feedList = await fetchWithAuth(`/api/profiles/${username}/posts`);
+    // 피드 렌더링 업데이트
+    renderProfileFeeds(feedList);
+  } catch (e) {
     alert('프로필 피드를 불러오는 데 실패했습니다.');
-    return;
   }
-
-  const feedList = await response.json();
 
   // 피드 렌더링 업데이트
   renderProfileFeeds(feedList);
@@ -188,17 +194,19 @@ async function handleProfileImage(e) {
   formData.append('profileImage', uploadProfileImage);
 
   // 서버에 프사 전송하기
-  const response = await fetchWithAuth(`/api/profiles/profile-image`, {
-    method: 'PUT',
-    body: formData,
-  });
+  try {
+    const { imageUrl } = await fetchWithAuth(`/api/profiles/profile-image`, {
+      method: 'PUT',
+      body: formData,
+      headers: {}, // FormData
+    });
 
-  if (!response.ok) {
+    // 모든 프로필 사진 업데이트
+    await updateAllProfileImages(imageUrl);
+
+  } catch (e) {
     alert('프로필 사진 업데이트 실패!');
-    return;
   }
-
-  const { imageUrl } = await response.json();
 
   // 모든 프로필 사진 업데이트
   await updateAllProfileImages(imageUrl);

@@ -56,13 +56,15 @@ function createSuggestionHTML(member) {
 
 // 서버에 추천 사용자목록 요청하기
 async function refreshSuggestions() {
-  const response = await fetchWithAuth(`/api/suggestions`);
-  const data = await response.json();
-
-  // console.log(data);
-  $suggestions.innerHTML = data
-    .map((user) => createSuggestionHTML(user))
-    .join('');
+  try {
+    const data = await fetchWithAuth(`/api/suggestions`);
+    // console.log(data);
+    $suggestions.innerHTML = data
+      .map((user) => createSuggestionHTML(user))
+      .join('');
+  } catch (e) {
+    console.error('Failed to load suggestions:', e);
+  }
 }
 
 async function initSuggestUser() {

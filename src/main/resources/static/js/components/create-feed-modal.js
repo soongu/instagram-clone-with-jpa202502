@@ -73,19 +73,18 @@ async function fetchFeed() {
   setLoading(true); // 로딩 상태 활성화
 
   setTimeout(async () => { 
-    // 서버에 POST요청 토큰을 포함시켜서 전송 
-    const response = await fetchWithAuth('/api/posts', {
-      method: 'POST',
-      body: formData
-    });
-  
-    const data = await response.json();
-    
-    if (response.ok) {
-      window.location.reload(); // 피드 새로고침
-    } else {
-      console.error('failed to request');
-      alert(data.message);
+    try {
+      // 서버에 POST요청 토큰을    // 서버로 전송
+      await fetchWithAuth('/api/posts', {
+        method: 'POST',
+        body: formData,
+        headers: {}, // FormData는 Content-Type을 설정하지 않아야 함 (브라우저가 자동 설정)
+      });
+
+      alert('게시물이 등록되었습니다.');
+      window.location.reload();
+    } catch (e) {
+      alert('게시물 등록 실패: ' + e.message);
     }
     setLoading(false);
     

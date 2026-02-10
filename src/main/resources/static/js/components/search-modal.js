@@ -286,13 +286,11 @@ async function search(inputValue) {
     console.log('val: ', inputValue);
     
     // 해시태그 검색
-    response = await fetchWithAuth(`/api/hashtags/search?keyword=${inputValue.substring(1)}`);
-    results = await response.json();
+    results = await fetchWithAuth(`/api/hashtags/search?keyword=${inputValue.substring(1)}`);
     renderHashtagResults(results);
   } else {
     // 사용자 검색
-    response = await fetchWithAuth(`/api/search/members?keyword=${inputValue}`);
-    results = await response.json();
+    results = await fetchWithAuth(`/api/search/members?keyword=${inputValue}`);
     // console.log(results);
     renderResults(results); // 사용자 검색결과 렌더링
   }

@@ -198,21 +198,20 @@ export async function openModal(postId) {
   
   
   // 서버에 데이터 요청
-  const response = await fetchWithAuth(`/api/posts/${postId}`);
+  try {
+    const feedData = await fetchWithAuth(`/api/posts/${postId}`);
+    console.log(feedData);
 
-  if (!response.ok) {
+    // 화면에 렌더링
+    renderModalContent(feedData);
+
+    // 이전, 다음 피드 렌더링 처리
+    updateFeedNavigation(postId);
+
+  } catch (e) {
     alert('피드 게시물 정보를 불러오는데 실패했습니다.');
     return;
   }
-
-  const feedData = await response.json();
-  console.log(feedData);
-
-  // 화면에 렌더링
-  renderModalContent(feedData);
-
-  // 이전, 다음 피드 렌더링 처리
-  updateFeedNavigation(postId);
   
 
   // 모달 디스플레이 변경

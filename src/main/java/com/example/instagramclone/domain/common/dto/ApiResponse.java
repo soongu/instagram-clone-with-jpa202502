@@ -1,7 +1,9 @@
 package com.example.instagramclone.domain.common.dto;
 
 import com.example.instagramclone.exception.ErrorResponse;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record ApiResponse<T>(
         boolean success,
         T data,

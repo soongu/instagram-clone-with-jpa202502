@@ -85,27 +85,25 @@ export function createComment($form) {
     const content = $commentInput.value.trim();
     if (!content) return;
 
-    const response = await fetchWithAuth(`/api/posts/${postId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
-    });
+    try {
+      const commentResponse = await fetchWithAuth(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
 
-    if (!response.ok) {
+      // console.log(commentResponse);
+
+      // 댓글 입력창을 비우고, 게시버튼 잠그기
+      $commentInput.value = '';
+      $commentSubmitBtn.disabled = true;
+      
+      // 후속 렌더링 처리
+      renderAfterCreated(commentResponse);
+
+    } catch (e) {
       alert('댓글 생성에 실패했습니다.');
-      return;
     }
-
-    const commentResponse = await response.json();
-
-    // console.log(commentResponse);
-
-    // 댓글 입력창을 비우고, 게시버튼 잠그기
-    $commentInput.value = '';
-    $commentSubmitBtn.disabled = true;
-    
-    // 후속 렌더링 처리
-    renderAfterCreated(commentResponse);
 
   };
   

@@ -12,15 +12,13 @@ export async function getCurrentUser() {
   }
 
   currentUserPromise = (async () => {
-    const response = await fetchWithAuth(`/api/profiles/me`);
-
-    if (!response.ok) {
+    try {
+      return await fetchWithAuth(`/api/profiles/me`);
+    } catch (e) {
       currentUserPromise = null; // 실패 시 캐시 초기화
-      alert('로그인한 사용자 정보를 불러오는 데 실패했습니다.');
-      throw new Error('Failed to fetch user');
+      console.error('Failed to fetch user:', e);
+      return null;
     }
-
-    return await response.json();
   })();
 
   return currentUserPromise;

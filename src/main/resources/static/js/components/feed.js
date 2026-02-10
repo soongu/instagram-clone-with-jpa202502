@@ -27,20 +27,27 @@ async function fetchFeeds() {
   // 강제로 1초간의 로딩을 추가
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // 서버 요청시 토큰을 헤더에 포함해서 요청해야 함
-  const response = await fetchWithAuth(`/api/posts?page=${currentPage}&size=5`);
-  if (!response.ok) alert('피드 목록을 불러오는데 실패했습니다.');
-  const { feedList, hasNext } = await response.json();
+  try {
+    // 서버 요청시 토큰을 헤더에 포함해서 요청해야 함 (fetchWithAuth가 자동으로 처리 및 unwrapping)
+    const { feedList, hasNext } = await fetchWithAuth(`/api/posts?page=${currentPage}&size=5`);
 
-  // 다음페이지 상태 업데이트
-  hasNextPage = hasNext;
-  currentPage++;
-  isLoading = false;
+    // 다음페이지 상태 업데이트
+    hasNextPage = hasNext;
+    currentPage++;
+    isLoading = false;
 
-  $loadingSpinner.style.display = 'none';
+    $loadingSpinner.style.display = 'none';
 
-  return { feedList };
+    return { feedList };
+
+  } catch (e) {
+    alert('피드 목록을 불러오는데 실패했습니다.');
+    isLoading = false;
+    $loadingSpinner.style.display = 'none';
+    return { feedList: [] };
+  }
 }
+
 
 // 해시태그만 추출해서 링크로 감싸기
 export function convertHashtagsToLinks(content) {

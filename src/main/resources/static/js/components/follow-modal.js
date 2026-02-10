@@ -74,46 +74,48 @@ async function renderFollowList(type) {
   const pageUsername = getPageUsername();
 
   // 서버에 목록 요청하기
-  const response = await fetchWithAuth(`/api/follows/${pageUsername}/${type}`);
+  try {
+    const followList = await fetchWithAuth(`/api/follows/${pageUsername}/${type}`);
+    
+    // 화면에 렌더링
+    const $modalBody = $modal.querySelector('.modal-body');
+    $modalBody.innerHTML = followList.map(follow => createUserItem(follow, currentUser.username)).join('');
+    
+    // 각 팔로우 버튼에 이벤트 추가
+    $modalBody.querySelectorAll('.follow-button').forEach($button => {
 
-  const followList = await response.json();
-  
-  // 화면에 렌더링
-  const $modalBody = $modal.querySelector('.modal-body');
-  $modalBody.innerHTML = followList.map(follow => createUserItem(follow, currentUser.username)).join('');
-  
+      // 초기 버튼 상태 설정
+      updateFollowButton($button, $button.classList.contains('following'));
 
-  // 각 팔로우 버튼에 이벤트 추가
-  $modalBody.querySelectorAll('.follow-button').forEach($button => {
+      // 버튼을 누르면 팔로우 토글
+      $button.addEventListener('click', async () => { 
+        const { following } = await toggleFollow($button.dataset.username);
+        
+        // 현재 보고있는 페이지가 내 프로필페이지인지 타인 프로필페이지인지에 따라 처리가 달라짐
+        const isMyProfile = loggedInUsername === pageUsername;
 
-    // 초기 버튼 상태 설정
-    updateFollowButton($button, $button.classList.contains('following'));
-
-    // 버튼을 누르면 팔로우 토글
-    $button.addEventListener('click', async () => { 
-      const { following } = await toggleFollow($button.dataset.username);
-      
-      // 현재 보고있는 페이지가 내 프로필페이지인지 타인 프로필페이지인지에 따라 처리가 달라짐
-      const isMyProfile = loggedInUsername === pageUsername;
-
-      // 팔로워 목록에서 토글한건지, 팔로잉 목록에서 토글한건지
-      if (type === 'followings') {
-        // 버튼 상태를 반대로 변경
-        updateFollowButton($button, following);
-        if (isMyProfile) {
-          // 팔로잉 목록에서 해당 유저를 제거
-          $button.closest('.user-item').remove();
-          updateFollowingCount(-1);
+        // 팔로워 목록에서 토글한건지, 팔로잉 목록에서 토글한건지
+        if (type === 'followings') {
+          // 버튼 상태를 반대로 변경
+          updateFollowButton($button, following);
+          if (isMyProfile) {
+            // 팔로잉 목록에서 해당 유저를 제거
+            $button.closest('.user-item').remove();
+            updateFollowingCount(-1);
+          }
+        } else {  // 팔로워 목록에서
+          // 버튼 상태를 반대로 변경
+          updateFollowButton($button, following);
+          if (isMyProfile) {   // 팔로잉 수를 제어
+            updateFollowingCount(following ? 1 : -1);
+          }
         }
-      } else {  // 팔로워 목록에서
-        // 버튼 상태를 반대로 변경
-        updateFollowButton($button, following);
-        if (isMyProfile) {   // 팔로잉 수를 제어
-          updateFollowingCount(following ? 1 : -1);
-        }
-      }
+      });
     });
-  });
+
+  } catch (e) {
+    alert('팔로우 목록을 불러오는데 실패했습니다.');
+  }
 }
 
 // 모달 열기

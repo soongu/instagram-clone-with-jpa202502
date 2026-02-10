@@ -52,9 +52,15 @@ class HashtagSearch {
       return;
     }
 
-    const response = await fetchWithAuth(`/api/hashtags/search?keyword=${keyword}`);
-    const hashtags = await response.json();
-    // console.log(hashtags);
+    try {
+      const hashtags = await fetchWithAuth(`/api/hashtags/search?keyword=${keyword}`);
+      // console.log(hashtags);
+
+      // 서버에서 가져온 해시태그정보 렌더링
+      this.renderSuggestions(hashtags);
+    } catch (e) {
+      console.error(e);
+    }
 
     // 서버에서 가져온 해시태그정보 렌더링
     this.renderSuggestions(hashtags);

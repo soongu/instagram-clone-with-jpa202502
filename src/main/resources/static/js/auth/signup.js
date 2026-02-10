@@ -1,6 +1,7 @@
 
 import { ValidationRules, checkPasswordStrength } from "./validation.js";
 import { debounce } from '../util/debounce.js';
+import { fetchWithAuth } from "../util/api.js";
 
 // 모든 input별로 이전 값을 저장할 객체를 만듦
 const previousValues = {
@@ -13,15 +14,18 @@ const previousValues = {
 // 회원 가입정보를 서버에 전송하기
 async function fetchToSignUp(userData) {
 
-  const response = await fetch('/api/auth/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(userData)
-  });
+  try {
+    const data = await fetchWithAuth('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
 
-  // alert(data.message);
-  if (response.ok) window.location.href = '/'; // 로그인 페이지 이동
-  else alert(data.message);
+    // 성공 시 처리
+    window.location.href = '/'; // 로그인 페이지 이동 (또는 메인)
+
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 
@@ -168,9 +172,7 @@ function removeErrorMessage($formField) {
 
 // 서버에 중복체크 API 요청을 보내고 결과를 반환
 async function fetchToCheckDuplicate(type, value) {
-  const response = await fetch(`/api/auth/check-duplicate?type=${type}&value=${value}`);
-  return await response.json();
-  
+  return await fetchWithAuth(`/api/auth/check-duplicate?type=${type}&value=${value}`);
 }
 
 // 이메일 또는 전화번호를 상세검증
