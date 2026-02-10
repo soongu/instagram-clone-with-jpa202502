@@ -22,7 +22,7 @@ public class MemberService {
 
     @Transactional
     public void signUp(SignUpRequest signUpRequest) {
-        String emailOrPhone = signUpRequest.getEmailOrPhone();
+        String emailOrPhone = signUpRequest.emailOrPhone();
         String email = null;
         String phone = null;
 
@@ -40,20 +40,20 @@ public class MemberService {
         }
 
         // 사용자 이름 중복체크
-        if (memberRepository.existsByUsername(signUpRequest.getUsername())) {
+        if (memberRepository.existsByUsername(signUpRequest.username())) {
             throw new MemberException(ErrorCode.DUPLICATE_USERNAME);
         }
 
         // 비밀번호 암호화
-        String encodedPassword = passwordEncoder.encode(signUpRequest.getPassword());
+        String encodedPassword = passwordEncoder.encode(signUpRequest.password());
 
         // Entity 변환
         Member member = Member.builder()
-                .username(signUpRequest.getUsername())
+                .username(signUpRequest.username())
                 .password(encodedPassword)
                 .email(email)
                 .phone(phone)
-                .name(signUpRequest.getName())
+                .name(signUpRequest.name())
                 .build();
 
         // 저장
