@@ -25,8 +25,8 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
-        format_sql: true
-        show_sql: true
+        format_sql: false
+        show_sql: false
     defer-datasource-initialization: true
 
 #mybatis:
@@ -43,7 +43,12 @@ logging:
         instagramclone: debug
     org:
       hibernate:
-        SQL: debug
+        SQL: info
+        type:
+          descriptor:
+            sql: info
+            
+
 
 file:
   upload:
