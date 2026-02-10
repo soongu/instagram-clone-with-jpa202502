@@ -28,7 +28,6 @@ class MemberRepositoryTest {
                 .username("hongtutor")
                 .password("1234")
                 .email("hong@test.com")
-                .phone("010-1234-5678")
                 .name("Hong Gill Dong")
                 .build();
 
@@ -50,7 +49,6 @@ class MemberRepositoryTest {
                 .password("password")
                 .email("exist@test.com") // 중복 체크할 이메일
                 .name("tester")
-                .phone("010-0000-0000")
                 .build();
         memberRepository.save(member);
 
@@ -72,7 +70,6 @@ class MemberRepositoryTest {
                 .password("1234")
                 .email("same@test.com")
                 .name("user1")
-                .phone("010-1111-1111")
                 .build();
 
         Member member2 = Member.builder()
@@ -80,7 +77,6 @@ class MemberRepositoryTest {
                 .password("1234")
                 .email("same@test.com") // member1과 동일한 이메일 -> Unique 제약조건 위반 예상
                 .name("user2")
-                .phone("010-2222-2222")
                 .build();
 
         memberRepository.save(member1); // 첫 번째 저장은 성공
