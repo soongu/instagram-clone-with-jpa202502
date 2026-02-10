@@ -73,18 +73,57 @@ function initSignUp() {
     debouncedValidate($input);
   };
 
+  /* 
+    중복 호출 방지 로직:
+    사용자가 입력을 마치고 포커스를 즉시 옮기면 (blur), 
+    handleBlur에서 즉시 검증을 수행하고, 
+    기존에 대기중이던 debouncedValidate는 취소해야 함.
+    
+    하지만 현재 debounce 구현상 취소 메서드가 없다면, 
+    handleBlur에서는 '값이 변경되었을 때' 검증을 수행하되, 
+    이미 debouncedValidate가 실행 예정이라면 그것을 믿거나,
+    아니면 단순히 blur에서는 검증을 스킵하고 debounce에 맡길 수도 있음.
+    
+    사용자 경험상 blur시 즉시 검증이 좋으므로, 
+    debounce 구현을 수정하거나, 여기서 플래그를 사용할 수 있음.
+
+    간단한 해결책: 
+    입력 중(input)에는 debounce로 검증하고, 
+    blur 발생 시에는 "마지막 입력 후 충분한 시간이 지났는지" 따지지 않고 무조건 즉시 검증하되,
+    만약 blur에서 검증을 했다면 pending된 debounce는 무시되어야 함.
+    
+    여기서는 debouncedValidate에 .cancel()이 없으므로,
+    handleBlur에서는 validateField를 직접 호출하지 않고,
+    debouncedValidate를 '즉시 실행' 하도록 유도하거나,
+    단순히 blur 이벤트에서는 검증을 생략하고 디바운스에 맡기는 방법도 있음.
+    
+    하지만 "blur에서도 한번 더 터져서"라는 불만을 해결하려면,
+    blur 이벤트 핸들러의 내용을 수정해야 함.
+  */
+  
   const handleBlur = $input => { 
+    // blur 시점에는 UI 정리만 수행하거나, 
+    // 만약 디바운스 타이머가 돌고 있다면 취소하고 즉시 실행...은 debounce 수정 필요.
+    
+    // 가장 쉬운 수정: blur에서는 중복검사를 하지 않는다. 
+    // 어차피 input 이벤트에서 디바운스로 처리될 것이기 때문.
+    // 다만, 사용자가 클릭해서 들어왔다가 아무것도 안하고 나가는 경우 등은 체크할 필요 없음.
+    // 사용자가 입력하고 바로 나가는 경우 -> input이벤트가 이미 발생했으므로 디바운스 큐에 들어감.
+    // 따라서 blur에서는 API 호출을 유발하는 검증을 제거하거나, 
+    // 빈 값 체크 정도만 수행.
+    
+    // 수정안: blur에서는 API 중복체크를 제외한 동기적 검증(길이, 패턴 등)만 하거나
+    // 그냥 input 이벤트의 디바운스에 전적으로 맡김.
+    
+    // 여기서는 blur 이벤트를 제거하거나, UI적인 처리(에러메시지 제거 등)만 남김.
+    // 사용자가 탭키로 빠르게 이동할 때 검증이 조금 늦게(0.7초후) 뜨더라도 
+    // 중복 호출을 막는게 우선이라면 blur 검증을 제거하는게 맞음.
+    
     const fieldName = $input.name;
     const currentValue = $input.value.trim();
-
-    // 빈값이거나 값이 바뀐 적이 있을 때만 혹은 이전 값이랑 달라졌을 때만 검증
-    if (!currentValue || previousValues[fieldName] !== currentValue) {
-      previousValues[fieldName] = currentValue; // 이전 값 갱신
-      removeErrorMessage($input.closest('.form-field'));
-
-      // 디바운스가 아니라, blur 시점에는 바로 검증할 수도 있음
-      validateField($input);
-      updateSubmitButton($inputs, $submitButton);
+    
+    if (previousValues[fieldName] !== currentValue) {
+      previousValues[fieldName] = currentValue;
     }
   };
 
@@ -100,8 +139,14 @@ function initSignUp() {
 
     const { emailOrPhone, name, username, password } = $inputs;
 
+    // 핸드폰 번호일 경우 하이픈 제거 (중복체크 로직과 일치시킴)
+    let emailOrPhoneValue = emailOrPhone.value.trim();
+    if (!emailOrPhoneValue.includes('@')) {
+      emailOrPhoneValue = emailOrPhoneValue.replace(/[^0-9]/g, '');
+    }
+
     const payload = {
-      emailOrPhone: emailOrPhone.value,
+      emailOrPhone: emailOrPhoneValue,
       name: name.value,
       username: username.value,
       password: password.value,
@@ -140,6 +185,8 @@ async function validateField($input) {
       isValid = validatePassword($formField, inputValue);
     } else if (fieldName === 'username') {
       isValid = await validateUsername($formField, inputValue);
+    } else if (fieldName === 'name') {
+      showSuccess($formField, "확인되었습니다.");
     } 
   }
 
@@ -153,6 +200,7 @@ async function validateField($input) {
  */
 function showError($formField, message) {
   $formField.classList.add('error');
+  $formField.classList.remove('success'); // 성공 클래스 제거
   const $errorSpan = document.createElement('span');
   $errorSpan.classList.add('error-message');
   $errorSpan.textContent = message;
@@ -160,13 +208,31 @@ function showError($formField, message) {
 }
 
 /**
- * 에러 및 비밀번호 피드백을 제거한다.
+ * 성공 메시지를 표시하고, 필드에 success 클래스를 부여
+ */
+function showSuccess($formField, message) {
+  $formField.classList.remove('error'); // 에러 클래스 제거
+  $formField.classList.add('success');
+  
+  if (message) {
+    const $successSpan = document.createElement('span');
+    $successSpan.classList.add('success-message');
+    $successSpan.textContent = message;
+    $formField.append($successSpan);
+  }
+}
+
+/**
+ * 에러 및 성공 피드백, 비밀번호 피드백을 제거한다.
  */
 function removeErrorMessage($formField) {
   $formField.classList.remove('error');
+  $formField.classList.remove('success');
   const error = $formField.querySelector('.error-message');
+  const success = $formField.querySelector('.success-message');
   const feedback = $formField.querySelector('.password-feedback');
   if (error) error.remove();
+  if (success) success.remove();
   if (feedback) feedback.remove();
 }
 
@@ -188,6 +254,8 @@ async function validateEmailOrPhone($formField, inputValue) {
       if (!data.available) {
         showError($formField, data.message);
         return false;
+      } else {
+        showSuccess($formField, data.message);
       }
     }
   } else {
@@ -204,6 +272,8 @@ async function validateEmailOrPhone($formField, inputValue) {
       if (!data.available) {
         showError($formField, data.message);
         return false;
+      } else {
+        showSuccess($formField, data.message);
       }
     }
   }
@@ -268,6 +338,8 @@ async function validateUsername($formField, inputValue) {
   if (!data.available) {
     showError($formField, data.message);
     return false;
+  } else {
+    showSuccess($formField, data.message);
   }
   return true;
 }

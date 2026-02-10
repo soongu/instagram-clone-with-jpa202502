@@ -9,6 +9,18 @@
     position: relative;
 }
 
+.form-field.success::after {
+    content: '✓';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #58c322;
+    font-size: 18px;
+    font-weight: bold;
+    pointer-events: none;
+}
+
 .form-field .input-container {
     position: relative; /* 새로 추가된 컨테이너 */
     width: 100%;
@@ -34,6 +46,17 @@
 
 .error-message {
     color: #ed4956;
+    font-size: 12px;
+    margin: 4px 0;
+    display: block;
+}
+
+.form-field.success input {
+    border-color: #58c322;
+}
+
+.success-message {
+    color: #58c322;
     font-size: 12px;
     margin: 4px 0;
     display: block;
