@@ -1,6 +1,8 @@
 package com.example.instagramclone.exception;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 
 /**
@@ -8,6 +10,7 @@ import org.springframework.http.HttpStatus;
  * 에러 코드, 상태 코드, 메시지를 한 곳에서 관리하여 일관된 에러 응답을 보장합니다.
  */
 @Getter
+@RequiredArgsConstructor
 public enum ErrorCode {
 
     // Member 관련 에러 코드 (M으로 시작)
@@ -27,10 +30,4 @@ public enum ErrorCode {
     private final HttpStatus status; // HTTP 상태 코드 (예: 400, 404, 500)
     private final String code;       // 우리가 정의한 고유 에러 코드 (예: M001)
     private final String message;    // 사용자에게 보여줄 에러 메시지
-
-    ErrorCode(HttpStatus status, String code, String message) {
-        this.status = status;
-        this.code = code;
-        this.message = message;
-    }
 }

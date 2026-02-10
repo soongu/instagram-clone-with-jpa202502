@@ -1,5 +1,6 @@
 package com.example.instagramclone.exception;
 
+import com.example.instagramclone.domain.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +24,12 @@ public class GlobalExceptionHandler {
      * 예: 중복된 이메일 가입 시도 등
      */
     @ExceptionHandler(MemberException.class)
-    public ResponseEntity<ErrorResponse> handleMemberException(MemberException e, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleMemberException(MemberException e, HttpServletRequest request) {
         log.error("MemberException : {}", e.getMessage()); // 서버 로그에 에러 기록
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity
                 .status(errorCode.getStatus()) // ErrorCode에 정의된 HTTP 상태 코드 사용
-                .body(buildErrorResponse(errorCode, e.getMessage(), request.getRequestURI()));
+                .body(ApiResponse.fail(buildErrorResponse(errorCode, e.getMessage(), request.getRequestURI())));
     }
 
     /**
@@ -36,13 +37,13 @@ public class GlobalExceptionHandler {
      * 예: 비밀번호가 정규표현식에 맞지 않거나, 필수값이 누락된 경우
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
         log.error("ValidationException : {}", e.getMessage());
         // 검증 실패 메시지 중 첫 번째 메시지를 가져옵니다.
         String errorMessage = e.getBindingResult().getFieldError().getDefaultMessage();
         return ResponseEntity
                 .badRequest() // 400 Bad Request
-                .body(buildErrorResponse(ErrorCode.INVALID_INPUT_VALUE, errorMessage, request.getRequestURI()));
+                .body(ApiResponse.fail(buildErrorResponse(ErrorCode.INVALID_INPUT_VALUE, errorMessage, request.getRequestURI())));
     }
 
     /**
@@ -50,12 +51,12 @@ public class GlobalExceptionHandler {
      * 예상치 못한 서버 에러(NullPointerException 등)가 여기에 해당합니다.
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleException(Exception e, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception e, HttpServletRequest request) {
         log.error("Exception : {}", e.getMessage());
         // 보안을 위해 내부 에러 메시지는 숨기고, "서버 내부 오류"라는 일반적인 메시지를 반환합니다.
         return ResponseEntity
                 .internalServerError() // 500 Internal Server Error
-                .body(buildErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, "알 수 없는 에러가 발생했습니다.", request.getRequestURI()));
+                .body(ApiResponse.fail(buildErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, "알 수 없는 에러가 발생했습니다.", request.getRequestURI())));
     }
 
     /**
