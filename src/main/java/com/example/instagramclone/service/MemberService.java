@@ -2,6 +2,8 @@ package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
 import com.example.instagramclone.domain.member.entity.Member;
+import com.example.instagramclone.exception.ErrorCode;
+import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,18 +30,18 @@ public class MemberService {
         if (emailOrPhone.contains("@")) {
             email = emailOrPhone;
             if (memberRepository.existsByEmail(email)) {
-                throw new IllegalStateException("이미 존재하는 이메일입니다.");
+                throw new MemberException(ErrorCode.DUPLICATE_EMAIL);
             }
         } else {
             phone = emailOrPhone;
             if (memberRepository.existsByPhone(phone)) {
-                throw new IllegalStateException("이미 존재하는 전화번호입니다.");
+                throw new MemberException(ErrorCode.DUPLICATE_PHONE);
             }
         }
 
         // 사용자 이름 중복체크
         if (memberRepository.existsByUsername(signUpRequest.getUsername())) {
-            throw new IllegalStateException("이미 존재하는 사용자 이름입니다.");
+            throw new MemberException(ErrorCode.DUPLICATE_USERNAME);
         }
 
         // 비밀번호 암호화
