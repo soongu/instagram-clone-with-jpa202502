@@ -1,17 +1,17 @@
 package com.example.instagramclone.domain.member.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.Builder;
 
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
-public class DuplicateCheckResponse {
+@Builder
+public record DuplicateCheckResponse(
+        boolean available,
+        String message
+) {
+    public static DuplicateCheckResponse available(String message) {
+        return new DuplicateCheckResponse(true, message);
+    }
 
-    private boolean isAvailable;
-    private String message;
-
-    // TODO: 1. 정적 팩토리 메소드 (available, unavailable)를 만드세요
-    
+    public static DuplicateCheckResponse unavailable(String message) {
+        return new DuplicateCheckResponse(false, message);
+    }
 }

@@ -2,6 +2,7 @@ package com.example.instagramclone.controller.rest;
 
 import com.example.instagramclone.domain.common.dto.ApiResponse;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
+import com.example.instagramclone.domain.member.dto.response.DuplicateCheckResponse;
 import com.example.instagramclone.domain.member.dto.response.SignUpResponse;
 import com.example.instagramclone.service.MemberService;
 import jakarta.validation.Valid;
@@ -9,9 +10,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,4 +35,15 @@ public class AuthController {
     }
 
     // TODO: 2. 중복 확인 API를 구현하세요 (@GetMapping)
+    @GetMapping("/check-duplicate")
+    public ResponseEntity<ApiResponse<DuplicateCheckResponse>> checkDuplicate(@RequestParam String type, @RequestParam String value) {
+        boolean isAvailable = memberService.checkDuplicate(type, value);
+        String message = isAvailable ? "사용 가능한 " + type + "입니다." : "이미 사용 중인 " + type + "입니다.";
+        
+        DuplicateCheckResponse response = isAvailable ? 
+                DuplicateCheckResponse.available(message) : 
+                DuplicateCheckResponse.unavailable(message);
+        
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }
