@@ -69,7 +69,7 @@ public class MemberService {
             case "username" -> !memberRepository.existsByUsername(value);
             case "email" -> !memberRepository.existsByEmail(value);
             case "phone" -> !memberRepository.existsByPhone(value);
-            default -> throw new IllegalArgumentException("잘못된 검사 타입입니다.");
+            default -> throw new MemberException(ErrorCode.INVALID_INPUT_VALUE);
         };
     }
 
