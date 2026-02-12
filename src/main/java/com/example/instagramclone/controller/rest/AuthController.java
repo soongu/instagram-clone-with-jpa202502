@@ -1,5 +1,6 @@
 package com.example.instagramclone.controller.rest;
 
+import com.example.instagramclone.constant.AuthConstants;
 import com.example.instagramclone.domain.common.dto.ApiResponse;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
 import com.example.instagramclone.domain.member.dto.response.DuplicateCheckResponse;
@@ -31,7 +32,7 @@ public class AuthController {
         memberService.signUp(signUpRequest);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(SignUpResponse.of(signUpRequest.username(), "회원가입이 완료되었습니다.")));
+                .body(ApiResponse.success(SignUpResponse.of(signUpRequest.username(), AuthConstants.SIGNUP_SUCCESS_MESSAGE)));
     }
 
     // TODO: 2. 중복 확인 API를 구현하세요 (@GetMapping)

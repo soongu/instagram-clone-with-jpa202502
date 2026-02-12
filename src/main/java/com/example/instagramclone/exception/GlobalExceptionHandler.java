@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MemberException.class)
     public ResponseEntity<ApiResponse<Void>> handleMemberException(MemberException e, HttpServletRequest request) {
-        log.error("MemberException : {}", e.getMessage()); // 서버 로그에 에러 기록
+        log.warn("MemberException : {}", e.getMessage()); // 서버 로그에 에러 기록
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity
                 .status(errorCode.getStatus()) // ErrorCode에 정의된 HTTP 상태 코드 사용
@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
-        log.error("ValidationException : {}", e.getMessage());
+        log.warn("ValidationException : {}", e.getMessage());
         // 검증 실패 메시지 중 첫 번째 메시지를 가져옵니다.
         String errorMessage = e.getBindingResult().getFieldError().getDefaultMessage();
         return ResponseEntity
