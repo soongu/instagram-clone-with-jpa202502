@@ -24,8 +24,15 @@ public class PostImage extends BaseEntity {
     private Integer imgOrder;
 
     // TODO: 4. Post와의 다대일 연관관계를 설정하세요 (필수: FetchType.LAZY)
-    // private Post post;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "post_id", nullable = false)
+    private Post post;
 
     // TODO: 5. 생성자를 작성하세요 (@Builder 활용)
-
+    @Builder
+    public PostImage(String imageUrl, Integer imgOrder, Post post) {
+        this.imageUrl = imageUrl;
+        this.imgOrder = imgOrder;
+        this.post = post;
+    }
 }

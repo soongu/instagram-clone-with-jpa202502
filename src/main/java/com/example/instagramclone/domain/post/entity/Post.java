@@ -24,15 +24,23 @@ public class Post extends BaseEntity {
     private Long id;
 
     // TODO: 3. content 필드를 작성하세요 (타입: String, TEXT 컬럼)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     // TODO: 4. Member와의 다대일 연관관계를 설정하세요 (필수: FetchType.LAZY)
-    // private Member writer;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member writer;
 
     // TODO: 5. PostImage와의 일대다 양방향 연관관계를 설정하세요 (mappedBy = "post")
     // 주의: 실습을 위해 CascadeType은 설정하지 마세요!
-    // private List<PostImage> images = new ArrayList<>();
+    @OneToMany(mappedBy = "post")
+    private List<PostImage> images = new ArrayList<>();
 
     // TODO: 6. 생성자를 작성하세요 (@Builder 활용)
-
+    @Builder
+    public Post(String content, Member writer) {
+        this.content = content;
+        this.writer = writer;
+    }
 }
