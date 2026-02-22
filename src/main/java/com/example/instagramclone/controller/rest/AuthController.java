@@ -47,4 +47,11 @@ public class AuthController {
         
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    // TODO: 3. 로그인 API를 구현하세요 (@PostMapping("/login"))
+    // Hint: MemberService.login() 호출 후 결과 Member를 통해 세션 생성.
+    
+    // TODO: 4. 로그아웃 API를 구현하세요 (@PostMapping("/logout"))
+    // Hint: 생성된 세션을 무효화합니다 (session.invalidate()).
+
 }

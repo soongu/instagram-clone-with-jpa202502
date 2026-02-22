@@ -1,18 +1,8 @@
 package com.example.instagramclone.repository;
 
 import com.example.instagramclone.domain.post.entity.Post;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-
-@Repository
-public class PostRepository {
-
-    // TODO: JPA Repository로 전환하세요
-    public void save(Post post) {
-    }
-
-    public List<Post> findAll() {
-        return List.of();
-    }
+// TODO: 1. JpaRepository를 상속받는 인터페이스로 변경하세요
+public interface PostRepository extends JpaRepository<Post, Long> {
 }
