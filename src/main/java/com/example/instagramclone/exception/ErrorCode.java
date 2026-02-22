@@ -21,7 +21,7 @@ public enum ErrorCode {
     // NOT_FOUND(404): 리소스를 찾을 수 없음
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M004", "회원을 찾을 수 없습니다."),
     // UNAUTHORIZED(401): 인증 실패 (비밀번호 틀림 등)
-    INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "M005", "비밀번호가 일치하지 않습니다."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "M005", "아이디 또는 비밀번호가 일치하지 않습니다."),
 
     // Common (공통) 에러 코드 (C로 시작)
     INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 입력값입니다."),

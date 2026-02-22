@@ -13,7 +13,7 @@
 
     <link rel="stylesheet" href="/css/auth/pages/login.css">
 
-    <script src="/js/auth/login.js" defer></script>
+    <script type="module" src="/js/auth/login.js" defer></script>
 </head>
 <body>
 <main class="auth-layout">
