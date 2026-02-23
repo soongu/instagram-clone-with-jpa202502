@@ -4,7 +4,8 @@ import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
 import com.example.instagramclone.domain.member.dto.response.SessionUser;
 import com.example.instagramclone.domain.member.entity.Member;
-import com.example.instagramclone.exception.ErrorCode;
+import com.example.instagramclone.exception.CommonErrorCode;
+import com.example.instagramclone.exception.MemberErrorCode;
 import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,18 +33,18 @@ public class MemberService {
         if (emailOrPhone.contains("@")) {
             email = emailOrPhone;
             if (memberRepository.existsByEmail(email)) {
-                throw new MemberException(ErrorCode.DUPLICATE_EMAIL);
+                throw new MemberException(MemberErrorCode.DUPLICATE_EMAIL);
             }
         } else {
             phone = emailOrPhone;
             if (memberRepository.existsByPhone(phone)) {
-                throw new MemberException(ErrorCode.DUPLICATE_PHONE);
+                throw new MemberException(MemberErrorCode.DUPLICATE_PHONE);
             }
         }
 
         // 사용자 이름 중복체크
         if (memberRepository.existsByUsername(signUpRequest.username())) {
-            throw new MemberException(ErrorCode.DUPLICATE_USERNAME);
+            throw new MemberException(MemberErrorCode.DUPLICATE_USERNAME);
         }
 
         // 비밀번호 암호화
@@ -71,7 +72,7 @@ public class MemberService {
             case "username" -> !memberRepository.existsByUsername(value);
             case "email" -> !memberRepository.existsByEmail(value);
             case "phone" -> !memberRepository.existsByPhone(value);
-            default -> throw new MemberException(ErrorCode.INVALID_INPUT_VALUE);
+            default -> throw new MemberException(CommonErrorCode.INVALID_INPUT_VALUE);
         };
     }
 
@@ -83,18 +84,18 @@ public class MemberService {
         // 1. identifier 타입 분석 후 해당 값으로 Member 조회
         if (identifier.contains("@")) {
             member = memberRepository.findByEmail(identifier)
-                    .orElseThrow(() -> new MemberException(ErrorCode.INVALID_CREDENTIALS));
+                    .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
         } else if (identifier.matches("^[0-9]+$")) { // 숫자만으로 이루어졌다면 전화번호로 간주
             member = memberRepository.findByPhone(identifier)
-                    .orElseThrow(() -> new MemberException(ErrorCode.INVALID_CREDENTIALS));
+                    .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
         } else {
             member = memberRepository.findByUsername(identifier)
-                    .orElseThrow(() -> new MemberException(ErrorCode.INVALID_CREDENTIALS));
+                    .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
         }
 
         // 2. 비밀번호 검증
         if (!passwordEncoder.matches(request.password(), member.getPassword())) {
-            throw new MemberException(ErrorCode.INVALID_CREDENTIALS);
+            throw new MemberException(MemberErrorCode.INVALID_CREDENTIALS);
         }
 
         // 3. 보안을 위해 Entity 대신 SessionUser DTO 변환 후 반환

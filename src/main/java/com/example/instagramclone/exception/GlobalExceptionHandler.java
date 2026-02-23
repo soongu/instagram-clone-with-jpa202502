@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.LocalDateTime;
 
@@ -20,12 +21,11 @@ import java.time.LocalDateTime;
 public class GlobalExceptionHandler {
 
     /**
-     * 비즈니스 로직 실행 중 발생하는 MemberException을 처리합니다.
-     * 예: 중복된 이메일 가입 시도 등
+     * 비즈니스 로직 실행 중 발생하는 예외(MemberException, PostException 등)를 처리합니다.
      */
-    @ExceptionHandler(MemberException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMemberException(MemberException e, HttpServletRequest request) {
-        log.warn("MemberException : {}", e.getMessage()); // 서버 로그에 에러 기록
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e, HttpServletRequest request) {
+        log.warn("BusinessException : {}", e.getMessage()); // 서버 로그에 에러 기록
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity
                 .status(errorCode.getStatus()) // ErrorCode에 정의된 HTTP 상태 코드 사용
@@ -43,7 +43,18 @@ public class GlobalExceptionHandler {
         String errorMessage = e.getBindingResult().getFieldError().getDefaultMessage();
         return ResponseEntity
                 .badRequest() // 400 Bad Request
-                .body(ApiResponse.fail(buildErrorResponse(ErrorCode.INVALID_INPUT_VALUE, errorMessage, request.getRequestURI())));
+                .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.INVALID_INPUT_VALUE, errorMessage, request.getRequestURI())));
+    }
+
+    /**
+     * 파일 업로드 용량 제한을 초과했을 때 발생하는 예외를 처리합니다.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(Exception e, HttpServletRequest request) {
+        log.warn("MaxUploadSizeExceededException : {}", e.getMessage());
+        return ResponseEntity
+                .status(org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.INVALID_INPUT_VALUE, "파일 업로드 용량이 초과되었습니다.", request.getRequestURI())));
     }
 
     /**
@@ -56,7 +67,7 @@ public class GlobalExceptionHandler {
         // 보안을 위해 내부 에러 메시지는 숨기고, "서버 내부 오류"라는 일반적인 메시지를 반환합니다.
         return ResponseEntity
                 .internalServerError() // 500 Internal Server Error
-                .body(ApiResponse.fail(buildErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, "알 수 없는 에러가 발생했습니다.", request.getRequestURI())));
+                .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.INTERNAL_SERVER_ERROR, "알 수 없는 에러가 발생했습니다.", request.getRequestURI())));
     }
 
     /**

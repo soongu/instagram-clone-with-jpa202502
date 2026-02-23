@@ -1,5 +1,7 @@
 package com.example.instagramclone.util;
 
+import com.example.instagramclone.exception.PostErrorCode;
+import com.example.instagramclone.exception.PostException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;

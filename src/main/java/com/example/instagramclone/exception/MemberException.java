@@ -8,12 +8,9 @@ import lombok.Getter;
  * ErrorCode를 필드로 가지고 있어, 어떤 종류의 에러인지 명확하게 구분할 수 있습니다.
  */
 @Getter
-public class MemberException extends RuntimeException {
-
-    private final ErrorCode errorCode;
+public class MemberException extends BusinessException {
 
     public MemberException(ErrorCode errorCode) {
-        super(errorCode.getMessage()); // 부모 클래스(RuntimeException)에 메시지 전달
-        this.errorCode = errorCode;
+        super(errorCode);
     }
 }
