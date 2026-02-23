@@ -101,4 +101,10 @@ public class MemberService {
         // 3. 보안을 위해 Entity 대신 SessionUser DTO 변환 후 반환
         return SessionUser.from(member);
     }
+    
+    // 타 도메인(Service)에서 내부적인 비즈니스 로직을 위해 Member 엔티티가 필요할 때 호출
+    public Member getMemberById(Long memberId) {
+        return memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+    }
 }

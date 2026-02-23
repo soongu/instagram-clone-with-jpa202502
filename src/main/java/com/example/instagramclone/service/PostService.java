@@ -2,8 +2,11 @@ package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
 import com.example.instagramclone.domain.post.entity.Post;
+import com.example.instagramclone.domain.post.entity.PostImage;
+import com.example.instagramclone.repository.PostImageRepository;
 import com.example.instagramclone.repository.PostRepository;
-import com.example.instagramclone.repository.MemberRepository;
+import com.example.instagramclone.service.MemberService;
+import com.example.instagramclone.util.FileStore;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberErrorCode;
 import com.example.instagramclone.exception.MemberException;
@@ -13,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +26,9 @@ import java.util.List;
 public class PostService {
 
     private final PostRepository postRepository;
-    private final MemberRepository memberRepository;
+    private final PostImageRepository postImageRepository;
+    private final MemberService memberService;
+    private final FileStore fileStore;
 
     @Transactional
     public void create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException { // FileStore.storeFile throws IOException
@@ -30,9 +37,9 @@ public class PostService {
             throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS);
         }
         
-        // 2. 세션의 회원 ID로 Member 영속성 컨텍스트 조립 후 Post 엔터티 생성 로직에 writer로 주입.
-        Member writer = memberRepository.findById(loginMemberId)
-                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+        // 2. 세션의 회원 ID로 MemberService를 통해 Member 엔티티 획득.
+        // 타 도메인의 Repository를 직접 참조하는 대신, Service 계층을 거쳐 의존성을 낮춤 (MSA 철학)
+        Member writer = memberService.getMemberById(loginMemberId);
         
         Post post = Post.builder()
                 .content(request.content())
@@ -42,9 +49,50 @@ public class PostService {
         // 3. Post 저장: postRepository.save(post).
         Post savedPost = postRepository.save(post);
         
-        // TODO: [Step 5] 업로드된 이미지 파일들을 FileStore를 통해 저장하고 고유 파일명 리스트 확보
-        // TODO: [Step 5] PostImage 엔티티 생성 및 Post와 연관관계 설정
-        // TODO: [Step 5] 명시적으로 PostImage 엔티티들을 저장 (postImageRepository.saveAll) - Cascade 부재 체험!
+        // [기존 방식 - 강사 참고용 주석 처리]
+        /*
+        List<PostImage> postImages = new ArrayList<>();
+        if (images != null && !images.isEmpty()) {
+            for (int i = 0; i < images.size(); i++) {
+                MultipartFile file = images.get(i);
+                String imageUrl = fileStore.storeFile(file);
+                
+                PostImage postImage = PostImage.builder()
+                        .post(savedPost)
+                        .imageUrl(imageUrl)
+                        .imgOrder(i)
+                        .build();
+                        
+                postImages.add(postImage);
+            }
+            postImageRepository.saveAll(postImages);
+        }
+        */
+
+        // 4. 업로드된 이미지 파일들을 FileStore를 통해 저장하고 PostImage 엔티티 생성 (Stream & Lambda 적용)
+        if (images != null && !images.isEmpty()) {
+            List<PostImage> postImages = IntStream.range(0, images.size())
+                    .mapToObj(i -> {
+                        try {
+                            // 5. FileStore를 이용해 실제 디스크에 저장 후 URL 반환
+                            String imageUrl = fileStore.storeFile(images.get(i));
+                            
+                            // 6. PostImage 엔티티 생성 및 Post와 연관관계 설정
+                            return PostImage.builder()
+                                    .post(savedPost)
+                                    .imageUrl(imageUrl)
+                                    .imgOrder(i + 1)
+                                    .build();
+                        } catch (IOException e) {
+                            // 람다 내부에서는 Checked Exception을 바로 던질 수 없으므로 RuntimeException으로 감싸서 던짐
+                            throw new RuntimeException("피드 이미지 저장 중 오류가 발생했습니다.", e);
+                        }
+                    })
+                    .toList(); // Java 16+ 에서는 .toList()로 불변 리스트 반환 가능
+            
+            // 7. 명시적으로 PostImage 엔티티들을 저장 (postImageRepository.saveAll) - Cascade 부재 체험!
+            postImageRepository.saveAll(postImages);
+        }
     }
 
     public List<Post> getFeed() {
