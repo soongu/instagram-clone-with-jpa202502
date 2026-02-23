@@ -9,10 +9,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
+import java.util.*;
 
 @Component
 public class FileStore {
+
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
     // TODO: 1. application.yml의 file.upload.location 값을 주입받으세요 (@Value 활용)
     @Value("${file.upload.location}")
@@ -42,7 +44,7 @@ public class FileStore {
         }
 
         String lowerOriginal = originalFilename.toLowerCase();
-        if (!lowerOriginal.endsWith(".jpg") && !lowerOriginal.endsWith(".jpeg") && !lowerOriginal.endsWith(".png")) {
+        if (ALLOWED_EXTENSIONS.stream().noneMatch(lowerOriginal::endsWith)) {
             throw new PostException(PostErrorCode.INVALID_FILE_EXTENSION);
         }
 
@@ -58,6 +60,6 @@ public class FileStore {
         multipartFile.transferTo(new File(fullPath));
 
         // 5. 클라이언트가 접근할 수 있는 정적 리소스 경로 구조로 반환 (WebMvcConfig 활용)
-        return "/images/" + storeFileName;
+        return "/img/" + storeFileName;
     }
 }

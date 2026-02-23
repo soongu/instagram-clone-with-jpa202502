@@ -3,6 +3,8 @@ package com.example.instagramclone.exception;
 import com.example.instagramclone.domain.common.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -53,7 +55,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(Exception e, HttpServletRequest request) {
         log.warn("MaxUploadSizeExceededException : {}", e.getMessage());
         return ResponseEntity
-                .status(org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE)
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.INVALID_INPUT_VALUE, "파일 업로드 용량이 초과되었습니다.", request.getRequestURI())));
     }
 

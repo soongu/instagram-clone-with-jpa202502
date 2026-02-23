@@ -34,7 +34,7 @@ public class SecurityConfig {
                         "/error",           // 에러 페이지
                         "/css/**",          // 정적 리소스 (CSS)
                         "/js/**",           // 정적 리소스 (JavaScript)
-                        "/images/**",       // 정적 리소스 (이미지)
+                        "/images/**", "/img/**",      // 정적 리소스 (이미지)
                         "/favicon.ico",     // 파비콘
                         "/h2-console/**",    // H2 콘솔
                         "/api/**" // 파일 업로드 테스트로 임시 제한 해제
