@@ -14,11 +14,15 @@ import java.util.*;
 @Component
 public class FileStore {
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
+//    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp");
 
     // TODO: 1. application.yml의 file.upload.location 값을 주입받으세요 (@Value 활용)
     @Value("${file.upload.location}")
     private String fileDir;
+
+    // 💡 놀랍게도 스프링이 콤마를 인식해서 Set으로 변환해 줍니다!
+    @Value("${file.upload.allowed-extensions}")
+    private Set<String> allowedExtensions;
 
     @PostConstruct
     public void init() {
@@ -44,7 +48,7 @@ public class FileStore {
         }
 
         String lowerOriginal = originalFilename.toLowerCase();
-        if (ALLOWED_EXTENSIONS.stream().noneMatch(lowerOriginal::endsWith)) {
+        if (allowedExtensions.stream().noneMatch(lowerOriginal::endsWith)) {
             throw new PostException(PostErrorCode.INVALID_FILE_EXTENSION);
         }
 

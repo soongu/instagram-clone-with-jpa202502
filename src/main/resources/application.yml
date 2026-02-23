@@ -47,12 +47,13 @@ logging:
         type:
           descriptor:
             sql: info
-            
+
 
 
 file:
   upload:
     location: ${user.home}/instagram-clone/uploads/
+    allowed-extensions: .jpg,.jpeg,.png,.gif,.webp,.heic # 콤마로 구분하여 작성
 
 jwt:
   secret-key: L6h/xMxGO53HQmR/OB99qR/y0kTr2CAyaI5RqBIX184=  # 토큰발급시와 토큰위조검사시 사용할 서명
