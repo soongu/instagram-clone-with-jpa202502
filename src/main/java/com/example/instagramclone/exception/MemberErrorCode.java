@@ -11,8 +11,8 @@ public enum MemberErrorCode implements ErrorCode {
     DUPLICATE_USERNAME(HttpStatus.BAD_REQUEST, "M002", "이미 존재하는 사용자 이름입니다."),
     DUPLICATE_PHONE(HttpStatus.BAD_REQUEST, "M003", "이미 존재하는 전화번호입니다."),
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M004", "회원을 찾을 수 없습니다."),
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "M005", "아이디 또는 비밀번호가 일치하지 않습니다.")
-    ;
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "M005", "아이디 또는 비밀번호가 일치하지 않습니다."),
+    UNAUTHORIZED_ACCESS(HttpStatus.UNAUTHORIZED, "M006", "로그인이 필요한 서비스입니다.");
 
     private final HttpStatus status;
     private final String code;

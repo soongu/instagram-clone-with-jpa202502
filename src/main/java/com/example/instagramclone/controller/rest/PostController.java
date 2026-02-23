@@ -7,6 +7,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.instagramclone.constant.AuthConstants;
+import com.example.instagramclone.domain.common.dto.ApiResponse;
+import com.example.instagramclone.domain.member.dto.response.SessionUser;
+import com.example.instagramclone.exception.MemberErrorCode;
+import com.example.instagramclone.exception.MemberException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -16,6 +24,22 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<Void>> createPost(
+            @RequestPart("feed") PostCreateRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) throws IOException { 
+            
+        if (sessionUser == null) {
+            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
+        }
+
+        postService.create(request, images, sessionUser.id());
+        
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(null));
+    }
 
     // ------------------------------------------------------------------------------------------------
     // [임시 테스트 API 시작] - Step 2 파일 업로드 기능만 단독으로 테스트해보기 위함 (DB 저장 안함)

@@ -2,12 +2,16 @@ package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
 import com.example.instagramclone.domain.post.entity.Post;
-import com.example.instagramclone.repository.PostImageRepository;
 import com.example.instagramclone.repository.PostRepository;
-import com.example.instagramclone.util.FileStore;
+import com.example.instagramclone.repository.MemberRepository;
+import com.example.instagramclone.domain.member.entity.Member;
+import com.example.instagramclone.exception.MemberErrorCode;
+import com.example.instagramclone.exception.MemberException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 import java.util.List;
 
@@ -17,20 +21,30 @@ import java.util.List;
 public class PostService {
 
     private final PostRepository postRepository;
-    private final PostImageRepository postImageRepository;
-    private final FileStore fileStore;
+    private final MemberRepository memberRepository;
 
     @Transactional
-    public void create(PostCreateRequest request) {
-        // TODO: 1. 세션에서 현재 로그인한 사용자 정보 가져오기 (Controller에서 전달받기 등)
+    public void create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException { // FileStore.storeFile throws IOException
+        // 1. 요청 인가(Authorization): 세션에서 추출한 loginMemberId가 없는 경우 예외 발생시켜 접근 제한.
+        if (loginMemberId == null) {
+            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS);
+        }
         
-        // TODO: 2. 업로드된 이미지 파일들을 FileStore를 통해 저장하고 고유 파일명 리스트 확보
+        // 2. 세션의 회원 ID로 Member 영속성 컨텍스트 조립 후 Post 엔터티 생성 로직에 writer로 주입.
+        Member writer = memberRepository.findById(loginMemberId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
         
-        // TODO: 3. Post 엔티티를 생성하고 저장 (postRepository.save)
+        Post post = Post.builder()
+                .content(request.content())
+                .writer(writer)
+                .build();
+                
+        // 3. Post 저장: postRepository.save(post).
+        Post savedPost = postRepository.save(post);
         
-        // TODO: 4. 고유 파일명들을 이용해 PostImage 엔티티들을 생성하고 Post와 연관관계 설정
-        
-        // TODO: 5. 명시적으로 PostImage 엔티티들을 저장 (postImageRepository.saveAll) - Cascade 부재 체험!
+        // TODO: [Step 5] 업로드된 이미지 파일들을 FileStore를 통해 저장하고 고유 파일명 리스트 확보
+        // TODO: [Step 5] PostImage 엔티티 생성 및 Post와 연관관계 설정
+        // TODO: [Step 5] 명시적으로 PostImage 엔티티들을 저장 (postImageRepository.saveAll) - Cascade 부재 체험!
     }
 
     public List<Post> getFeed() {
