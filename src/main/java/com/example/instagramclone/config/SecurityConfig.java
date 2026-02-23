@@ -36,7 +36,8 @@ public class SecurityConfig {
                         "/js/**",           // 정적 리소스 (JavaScript)
                         "/images/**",       // 정적 리소스 (이미지)
                         "/favicon.ico",     // 파비콘
-                        "/h2-console/**"    // H2 콘솔
+                        "/h2-console/**",    // H2 콘솔
+                        "/api/**" // 파일 업로드 테스트로 임시 제한 해제
                 ).permitAll()
                 // 그 외 모든 요청은 인증된 사용자만 접근 가능
                 .anyRequest().authenticated()
