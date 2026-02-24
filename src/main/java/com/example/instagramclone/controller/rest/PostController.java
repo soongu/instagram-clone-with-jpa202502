@@ -1,8 +1,6 @@
 package com.example.instagramclone.controller.rest;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 
 import com.example.instagramclone.domain.common.dto.FeedResponse;
 import com.example.instagramclone.domain.post.dto.response.PostResponse;
@@ -23,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.io.IOException;
 import java.util.List;
+import com.example.instagramclone.util.PageableUtil;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -60,8 +59,8 @@ public class PostController {
             throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
         }
 
-        // 프론트엔드 페이지는 1부터 시작하지만 (feed.js - 10번라인 참조), Spring Data JPA는 0-index 기반이므로 1을 빼서 PageRequest 생성
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
+        // 2. 파라미터 검증 및 Pageable 생성 (관심사 분리)
+        Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
         
         FeedResponse<PostResponse> response = postService.getFeed(pageable);
         

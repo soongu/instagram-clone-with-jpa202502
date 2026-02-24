@@ -86,6 +86,11 @@ public class PostService {
         Slice<Post> postSlice = postRepository.findAllWithImages(pageable);
         List<Post> posts = postSlice.getContent();
         
+        // 엣지 케이스 방어: 조회된 게시물이 없으면 빈 리스트로 즉시 반환하여 불필요한 IN 쿼리 방지
+        if (posts.isEmpty()) {
+            return FeedResponse.of(postSlice.hasNext(), Collections.emptyList());
+        }
+        
         // 2. 조회된 부모들을 기반으로 자식 이미지들을 IN 쿼리 한 방으로 전부 가져옵니다.
         List<PostImage> allImages = postImageRepository.findByPostIn(posts);
         
