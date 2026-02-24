@@ -25,7 +25,7 @@
 
   <!-- 추천 사용자 목록 -->
   <div class="suggestions-list">
-    
+
   </div>
 
   <!-- 푸터 링크 -->
@@ -43,7 +43,7 @@
       <a href="#">Meta Verified</a>
     </nav>
     <div class="copyright">
-      © 2024 INSTAGRAM FROM META
+      © 2026 INSTAGRAM FROM META
     </div>
   </div>
 </div>
