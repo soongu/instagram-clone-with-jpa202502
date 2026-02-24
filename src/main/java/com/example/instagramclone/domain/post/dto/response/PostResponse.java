@@ -1,6 +1,7 @@
 package com.example.instagramclone.domain.post.dto.response;
 
 import com.example.instagramclone.domain.post.entity.Post;
+import com.example.instagramclone.domain.post.entity.PostImage;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,13 +18,13 @@ public record PostResponse(
         LikeStatusResponse likeStatus,
         int commentCount
 ) {
-    public static PostResponse from(Post post) {
+    public static PostResponse of(Post post, List<PostImage> images) {
         return new PostResponse(
                 post.getId(),
                 post.getContent(),
                 post.getWriter().getUsername(),
                 post.getWriter().getProfileImageUrl(),
-                post.getImages().stream()
+                images.stream()
                         .map(PostImageResponse::from)
                         .toList(),
                 post.getCreatedAt(),

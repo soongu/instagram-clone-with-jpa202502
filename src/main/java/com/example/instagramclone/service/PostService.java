@@ -10,6 +10,7 @@ import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
 import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.domain.post.entity.PostImage;
 import com.example.instagramclone.repository.PostRepository;
+import com.example.instagramclone.repository.PostImageRepository;
 import com.example.instagramclone.util.FileStore;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberErrorCode;
@@ -20,7 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Service
@@ -29,6 +34,7 @@ import java.util.stream.IntStream;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final PostImageRepository postImageRepository;
     private final MemberService memberService;
     private final FileStore fileStore;
 
@@ -48,42 +54,54 @@ public class PostService {
                 .writer(writer)
                 .build();
                 
-        // 4. 업로드된 이미지 파일들을 FileStore를 통해 저장하고 PostImage 엔티티 생성 (Stream & Lambda 적용)
+        // [과제 2 예시답안] 단방향 연관관계이므로 필드를 통한 Cascade를 쓸 수 없습니다.
+        // 먼저 부모 엔티티(Post)를 저장합니다.
+        Post savedPost = postRepository.save(post);
+
+        // 4. 업로드된 이미지 파일들을 FileStore를 통해 저장하고 PostImage 엔티티 생성
         if (images != null && !images.isEmpty()) {
-            IntStream.range(0, images.size())
-                    .forEach(i -> {
+            List<PostImage> postImages = IntStream.range(0, images.size())
+                    .mapToObj(i -> {
                         try {
-                            // 5. FileStore를 이용해 실제 디스크에 저장 후 URL 반환
                             String imageUrl = fileStore.storeFile(images.get(i));
-                            
-                            // 6. PostImage 엔티티 생성 및 Post와 연관관계 설정
-                            PostImage postImage = PostImage.builder()
-                                    .post(post)
+                            return PostImage.builder()
+                                    .post(savedPost) // 단방향이므로 연관관계의 주인인 PostImage에서 직접 Post를 세팅
                                     .imageUrl(imageUrl)
                                     .imgOrder(i + 1)
                                     .build();
-                            
-                            // 양방향 연관관계 설정
-                            post.addImage(postImage);
                         } catch (IOException e) {
-                            // 람다 내부에서는 Checked Exception을 바로 던질 수 없으므로 RuntimeException으로 감싸서 던짐
                             throw new RuntimeException("피드 이미지 저장 중 오류가 발생했습니다.", e);
                         }
-                    });
+                    })
+                    .toList();
+            
+            // [과제 2 예시답안] 자식 엔티티들을 명시적으로 Batch Save 합니다.
+            postImageRepository.saveAll(postImages);
         }
-        
-        // 3. & 7. Post 저장: CascadeType.ALL 덕분에 post만 저장하면 연관된 postImage들도 한 번에 INSERT 됨.
-        postRepository.save(post);
     }
 
     // TODO: [Day 7] 반환 타입을 FeedResponse<PostResponse> 로 변경하고, 인스타그램식 무한 스크롤(Paging) 스펙에 맞추어 페이징 처리하세요.
     public FeedResponse<PostResponse> getFeed(Pageable pageable) {
-        // 데이터베이스에서 게시물을 모두 조회 (Fetch Join으로 N+1 해결 및 페이징 적용)
+        // [과제 2 예시답안] 1. 단방향 조회 전략: 부모(Post)만 페이징 조회합니다. (안전한 페이징)
         Slice<Post> postSlice = postRepository.findAllWithImages(pageable);
+        List<Post> posts = postSlice.getContent();
         
-        // 응답을 엔티티에서 DTO(PostResponse)로 변환
-        List<PostResponse> feedList = postSlice.getContent().stream()
-                .map(PostResponse::from)
+        // 2. 조회된 부모들을 기반으로 자식 이미지들을 IN 쿼리 한 방으로 전부 가져옵니다.
+        List<PostImage> allImages = postImageRepository.findByPostIn(posts);
+        
+        // 3. 자식 이미지들을 부모의 ID(또는 엔티티)를 기준으로 메모리에서 그룹핑합니다.
+        Map<Post, List<PostImage>> imageMap = allImages.stream()
+                .collect(Collectors.groupingBy(PostImage::getPost));
+        
+        // 4. 응답을 엔티티에서 DTO(PostResponse)로 변환 (그룹핑된 이미지를 수동으로 조립 및 정렬)
+        List<PostResponse> feedList = posts.stream()
+                .map(post -> {
+                    List<PostImage> postImages = imageMap.getOrDefault(post, Collections.emptyList())
+                            .stream()
+                            .sorted(Comparator.comparing(PostImage::getImgOrder))
+                            .toList();
+                    return PostResponse.of(post, postImages);
+                })
                 .toList();
                 
         // slice.hasNext()를 통해 다음 페이지 여부 전달

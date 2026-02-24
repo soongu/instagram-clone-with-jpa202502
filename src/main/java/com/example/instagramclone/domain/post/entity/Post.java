@@ -8,8 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Builder;
 
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "posts")
@@ -28,9 +26,10 @@ public class Post extends BaseEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member writer;
 
-    // TODO: [Day 7] Cascade 적용 및 고아 객체 제거 옵션을 추가하세요. (cascade = CascadeType.ALL, orphanRemoval = true)
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PostImage> images = new ArrayList<>();
+    // [과제 2 예시답안] 현업 트렌드(연관관계 다이어트)를 반영하여 양방향 매핑 제거 (단방향 매핑으로 변경)
+    // - cascade, orphanRemoval 옵션과 필드를 과감히 지워 도메인 결합도를 낮춤.
+    // @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    // private List<PostImage> images = new ArrayList<>();
 
     @Builder
     public Post(String content, Member writer) {
@@ -38,9 +37,6 @@ public class Post extends BaseEntity {
         this.writer = writer;
     }
 
-    // TODO: [Day 7] 양방향 연관관계 편의 메서드(addImage)를 추가하세요.
-    public void addImage(PostImage image) {
-        this.images.add(image);
-        // 편의상 양방향 관계 설정 (PostImage 측 세터가 없으므로 생략하거나, Builder로 주입된 것을 가정함)
-    }
+    // [과제 2 예시답안] 양방향 연관관계 편의 메서드 제거됨.
+    // public void addImage(PostImage image) { ... }
 }

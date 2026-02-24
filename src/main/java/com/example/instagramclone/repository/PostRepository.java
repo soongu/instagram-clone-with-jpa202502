@@ -9,12 +9,12 @@ import org.springframework.data.jpa.repository.Query;
 // TODO: 1. JpaRepository를 상속받는 인터페이스로 변경하세요
 public interface PostRepository extends JpaRepository<Post, Long> {
 
-    // TODO: [Day 7] Fetch Join을 사용하여 N+1 문제 해결하기
-    // TODO: [Day 7] 무한 스크롤을 위한 Slice 페이징 추가하기
+    // [과제 2 예시답안] 단방향 매핑 적용 시
+    // - ToOne 관계인 writer만 Fetch Join으로 유지하여 1차 쿼리를 날립니다.
+    // - (ToMany 컬렉션이 없으므로 default_batch_fetch_size 옵션도 더 이상 필요 없습니다.)
     @Query("""
         SELECT p FROM Post p 
         JOIN FETCH p.writer        
-        JOIN FETCH p.images 
                 """)
     Slice<Post> findAllWithImages(Pageable pageable);
 }
