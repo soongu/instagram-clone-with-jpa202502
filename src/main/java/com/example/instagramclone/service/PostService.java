@@ -48,25 +48,6 @@ public class PostService {
         // 3. Post 저장: postRepository.save(post).
         Post savedPost = postRepository.save(post);
         
-        // [기존 방식 - 강사 참고용 주석 처리]
-        /*
-        List<PostImage> postImages = new ArrayList<>();
-        if (images != null && !images.isEmpty()) {
-            for (int i = 0; i < images.size(); i++) {
-                MultipartFile file = images.get(i);
-                String imageUrl = fileStore.storeFile(file);
-                
-                PostImage postImage = PostImage.builder()
-                        .post(savedPost)
-                        .imageUrl(imageUrl)
-                        .imgOrder(i + 1)
-                        .build();
-                        
-                postImages.add(postImage);
-            }
-            postImageRepository.saveAll(postImages);
-        }
-        */
 
         // 4. 업로드된 이미지 파일들을 FileStore를 통해 저장하고 PostImage 엔티티 생성 (Stream & Lambda 적용)
         if (images != null && !images.isEmpty()) {
@@ -89,14 +70,14 @@ public class PostService {
                     })
                     .toList(); // Java 16+ 에서는 .toList()로 불변 리스트 반환 가능
             
-            // 7. 명시적으로 PostImage 엔티티들을 저장 (postImageRepository.saveAll) - Cascade 부재 체험!
+            // TODO: [Day 7] 아래 수동 저장 로직을 삭제하고 부모 엔티티(Post) 저장 시 Cascade를 이용하도록 변경하세요.
             postImageRepository.saveAll(postImages);
         }
     }
 
+    // TODO: [Day 7] 반환 타입을 FeedResponse<PostResponse> 로 변경하고, 인스타그램식 무한 스크롤(Paging) 스펙에 맞추어 페이징 처리하세요.
     public List<Post> getFeed() {
-        // TODO: 6. 데이터베이스에서 게시물을 모두 조회하여 반환
-        // Hint: 이 메서드를 호출할 때 N+1 문제가 발생하는지 쿼리 로그를 주의 깊게 살펴봅니다.
+        // TODO: [Day 7] 응답을 엔티티에서 DTO(PostResponse)로 변환하세요.
         return postRepository.findAll();
     }
 }

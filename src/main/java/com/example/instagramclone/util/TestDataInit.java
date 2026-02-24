@@ -2,6 +2,10 @@ package com.example.instagramclone.util;
 
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.repository.MemberRepository;
+import com.example.instagramclone.domain.post.entity.Post;
+import com.example.instagramclone.domain.post.entity.PostImage;
+import com.example.instagramclone.repository.PostRepository;
+import com.example.instagramclone.repository.PostImageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -16,6 +20,8 @@ import java.util.List;
 public class TestDataInit implements ApplicationRunner {
 
     private final MemberRepository memberRepository;
+    private final PostRepository postRepository;
+    private final PostImageRepository postImageRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -35,8 +41,26 @@ public class TestDataInit implements ApplicationRunner {
                     .email(usernames.get(i) + "@test.com")
                     .build();
 
-            memberRepository.save(member);
+            Member savedMember = memberRepository.save(member);
+
+            // TODO: [Day 7] N+1 조회 실습을 위해 계정당 5개의 피드와 각 2개의 사진을 무작위로 생성 (picsum 서비스 이용)
+            for (int p = 1; p <= 5; p++) {
+                Post post = Post.builder()
+                        .content(savedMember.getName() + "의 " + p + "번째 일상 피드입니다~! #테스트")
+                        .writer(savedMember)
+                        .build();
+                Post savedPost = postRepository.save(post);
+
+                for (int img = 1; img <= 2; img++) {
+                    PostImage postImage = PostImage.builder()
+                            .post(savedPost)
+                            .imageUrl("https://picsum.photos/600/600?random=" + (i * 10 + p * 2 + img))
+                            .imgOrder(img)
+                            .build();
+                    postImageRepository.save(postImage);
+                }
+            }
         }
-        System.out.println("테스트용 계정 5개 세팅 완료!");
+        System.out.println("테스트용 계정 5개 및 피드 세팅 완료! (게시물 총 25개)");
     }
 }

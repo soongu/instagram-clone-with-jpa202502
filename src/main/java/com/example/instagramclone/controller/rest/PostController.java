@@ -1,6 +1,7 @@
 package com.example.instagramclone.controller.rest;
 
 import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
+import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.service.PostService;
 import com.example.instagramclone.util.FileStore;
 import lombok.RequiredArgsConstructor;
@@ -41,29 +42,11 @@ public class PostController {
                 .body(ApiResponse.success(null));
     }
 
-    // ------------------------------------------------------------------------------------------------
-    // [임시 테스트 API 시작] - Step 2 파일 업로드 기능만 단독으로 테스트해보기 위함 (DB 저장 안함)
-    // ------------------------------------------------------------------------------------------------
-    private final FileStore fileStore;
-
-    // 임시 테스트 1. 단일 파일 업로드
-    @PostMapping("/test/upload/single")
-    public String testSingleUpload(@RequestParam("file") MultipartFile file) throws IOException {
-        String savedFileName = fileStore.storeFile(file);
-        return "단일 파일 업로드 성공! 서버에 저장된 고유 파일명: " + savedFileName;
+    // TODO: [Day 7] JSON 무한 순환 참조 에러 체험을 위한 피드 조회 API 작성
+    // 처음엔 List<Post> 엔티티 직접 반환으로 무한 순환 에러 체험 -> 이후 FeedResponse<PostResponse> DTO 및 Pageable 적용으로 변경
+    @GetMapping
+    public List<Post> getFeed() {
+        return postService.getFeed();
     }
 
-    // 임시 테스트 2. 다중 파일 업로드
-    @PostMapping("/test/upload/multi")
-    public String testMultiUpload(@RequestParam("files") List<MultipartFile> files) throws IOException {
-        StringBuilder result = new StringBuilder("다중 파일 업로드 성공! \n[저장된 파일명 목록]\n");
-        for (MultipartFile file : files) {
-            String savedFileName = fileStore.storeFile(file);
-            result.append("- ").append(savedFileName).append("\n");
-        }
-        return result.toString();
-    }
-    // ------------------------------------------------------------------------------------------------
-    // [임시 테스트 API 끝]
-    // ------------------------------------------------------------------------------------------------
 }
