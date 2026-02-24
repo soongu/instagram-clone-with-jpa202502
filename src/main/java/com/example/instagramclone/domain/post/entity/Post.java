@@ -29,7 +29,7 @@ public class Post extends BaseEntity {
     private Member writer;
 
     // TODO: [Day 7] Cascade 적용 및 고아 객체 제거 옵션을 추가하세요. (cascade = CascadeType.ALL, orphanRemoval = true)
-    @OneToMany(mappedBy = "post")
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostImage> images = new ArrayList<>();
 
     @Builder
@@ -39,5 +39,8 @@ public class Post extends BaseEntity {
     }
 
     // TODO: [Day 7] 양방향 연관관계 편의 메서드(addImage)를 추가하세요.
-    // public void addImage(PostImage image) { ... }
+    public void addImage(PostImage image) {
+        this.images.add(image);
+        // 편의상 양방향 관계 설정 (PostImage 측 세터가 없으므로 생략하거나, Builder로 주입된 것을 가정함)
+    }
 }

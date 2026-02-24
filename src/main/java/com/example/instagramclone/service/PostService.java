@@ -3,7 +3,6 @@ package com.example.instagramclone.service;
 import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
 import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.domain.post.entity.PostImage;
-import com.example.instagramclone.repository.PostImageRepository;
 import com.example.instagramclone.repository.PostRepository;
 import com.example.instagramclone.service.MemberService;
 import com.example.instagramclone.util.FileStore;
@@ -25,7 +24,6 @@ import java.util.stream.IntStream;
 public class PostService {
 
     private final PostRepository postRepository;
-    private final PostImageRepository postImageRepository;
     private final MemberService memberService;
     private final FileStore fileStore;
 
@@ -45,34 +43,32 @@ public class PostService {
                 .writer(writer)
                 .build();
                 
-        // 3. Post 저장: postRepository.save(post).
-        Post savedPost = postRepository.save(post);
-        
-
         // 4. 업로드된 이미지 파일들을 FileStore를 통해 저장하고 PostImage 엔티티 생성 (Stream & Lambda 적용)
         if (images != null && !images.isEmpty()) {
-            List<PostImage> postImages = IntStream.range(0, images.size())
-                    .mapToObj(i -> {
+            IntStream.range(0, images.size())
+                    .forEach(i -> {
                         try {
                             // 5. FileStore를 이용해 실제 디스크에 저장 후 URL 반환
                             String imageUrl = fileStore.storeFile(images.get(i));
                             
                             // 6. PostImage 엔티티 생성 및 Post와 연관관계 설정
-                            return PostImage.builder()
-                                    .post(savedPost)
+                            PostImage postImage = PostImage.builder()
+                                    .post(post)
                                     .imageUrl(imageUrl)
                                     .imgOrder(i + 1)
                                     .build();
+                            
+                            // 양방향 연관관계 설정
+                            post.addImage(postImage);
                         } catch (IOException e) {
                             // 람다 내부에서는 Checked Exception을 바로 던질 수 없으므로 RuntimeException으로 감싸서 던짐
                             throw new RuntimeException("피드 이미지 저장 중 오류가 발생했습니다.", e);
                         }
-                    })
-                    .toList(); // Java 16+ 에서는 .toList()로 불변 리스트 반환 가능
-            
-            // TODO: [Day 7] 아래 수동 저장 로직을 삭제하고 부모 엔티티(Post) 저장 시 Cascade를 이용하도록 변경하세요.
-            postImageRepository.saveAll(postImages);
+                    });
         }
+        
+        // 3. & 7. Post 저장: CascadeType.ALL 덕분에 post만 저장하면 연관된 postImage들도 한 번에 INSERT 됨.
+        postRepository.save(post);
     }
 
     // TODO: [Day 7] 반환 타입을 FeedResponse<PostResponse> 로 변경하고, 인스타그램식 무한 스크롤(Paging) 스펙에 맞추어 페이징 처리하세요.
