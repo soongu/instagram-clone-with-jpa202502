@@ -67,6 +67,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e, HttpServletRequest request) {
         log.error("Exception : {}", e.getMessage());
         // 보안을 위해 내부 에러 메시지는 숨기고, "서버 내부 오류"라는 일반적인 메시지를 반환합니다.
+        e.printStackTrace();
+
         return ResponseEntity
                 .internalServerError() // 500 Internal Server Error
                 .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.INTERNAL_SERVER_ERROR, "알 수 없는 에러가 발생했습니다.", request.getRequestURI())));

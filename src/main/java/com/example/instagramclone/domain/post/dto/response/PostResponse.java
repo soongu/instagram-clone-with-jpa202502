@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// API 명세서에 맞추어 피드 응답 DTO 작성
+// 프론트엔드 스펙에 맞추어 피드 응답 DTO 작성 (feed.js 116번 라인 참조)
 public record PostResponse(
         @JsonProperty("feed_id")
         Long id,
@@ -14,7 +14,6 @@ public record PostResponse(
         String profileImageUrl,
         List<PostImageResponse> images,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt,
         LikeStatusResponse likeStatus,
         int commentCount
 ) {
@@ -28,7 +27,6 @@ public record PostResponse(
                         .map(PostImageResponse::from)
                         .toList(),
                 post.getCreatedAt(),
-                post.getUpdatedAt(),
                 LikeStatusResponse.empty(),
                 0
         );

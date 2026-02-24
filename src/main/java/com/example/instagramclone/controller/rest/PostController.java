@@ -46,8 +46,17 @@ public class PostController {
     // TODO: [Day 7] JSON 무한 순환 참조 에러 체험을 위한 피드 조회 API 작성
     // 처음엔 List<Post> 엔티티 직접 반환으로 무한 순환 에러 체험 -> 이후 FeedResponse<PostResponse> DTO 및 Pageable 적용으로 변경
     @GetMapping
-    public FeedResponse<PostResponse> getFeed() {
-        return postService.getFeed();
+    public ResponseEntity<ApiResponse<FeedResponse<PostResponse>>> getFeed(
+            @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) {
+        
+        // 1. 요청 인가(Authorization): 세션에서 추출한 sessionUser가 없는 경우 예외 발생시켜 접근 제한.
+        if (sessionUser == null) {
+            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
+        }
+
+        FeedResponse<PostResponse> response = postService.getFeed();
+        
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
 }
