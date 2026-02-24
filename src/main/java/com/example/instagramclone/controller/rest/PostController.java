@@ -1,5 +1,9 @@
 package com.example.instagramclone.controller.rest;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
 import com.example.instagramclone.domain.common.dto.FeedResponse;
 import com.example.instagramclone.domain.post.dto.response.PostResponse;
 
@@ -47,6 +51,8 @@ public class PostController {
     // 처음엔 List<Post> 엔티티 직접 반환으로 무한 순환 에러 체험 -> 이후 FeedResponse<PostResponse> DTO 및 Pageable 적용으로 변경
     @GetMapping
     public ResponseEntity<ApiResponse<FeedResponse<PostResponse>>> getFeed(
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "5") int size,
             @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) {
         
         // 1. 요청 인가(Authorization): 세션에서 추출한 sessionUser가 없는 경우 예외 발생시켜 접근 제한.
@@ -54,7 +60,10 @@ public class PostController {
             throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
         }
 
-        FeedResponse<PostResponse> response = postService.getFeed();
+        // 프론트엔드 페이지는 1부터 시작하지만 (feed.js - 10번라인 참조), Spring Data JPA는 0-index 기반이므로 1을 빼서 PageRequest 생성
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
+        
+        FeedResponse<PostResponse> response = postService.getFeed(pageable);
         
         return ResponseEntity.ok(ApiResponse.success(response));
     }

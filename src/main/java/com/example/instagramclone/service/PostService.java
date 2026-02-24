@@ -1,5 +1,8 @@
 package com.example.instagramclone.service;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+
 import com.example.instagramclone.domain.common.dto.FeedResponse;
 import com.example.instagramclone.domain.post.dto.response.PostResponse;
 
@@ -7,7 +10,6 @@ import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
 import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.domain.post.entity.PostImage;
 import com.example.instagramclone.repository.PostRepository;
-import com.example.instagramclone.service.MemberService;
 import com.example.instagramclone.util.FileStore;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberErrorCode;
@@ -75,16 +77,16 @@ public class PostService {
     }
 
     // TODO: [Day 7] 반환 타입을 FeedResponse<PostResponse> 로 변경하고, 인스타그램식 무한 스크롤(Paging) 스펙에 맞추어 페이징 처리하세요.
-    public FeedResponse<PostResponse> getFeed() {
-        // 데이터베이스에서 게시물을 모두 조회 (Fetch Join으로 N+1 해결)
-        List<Post> posts = postRepository.findAllWithImages();
+    public FeedResponse<PostResponse> getFeed(Pageable pageable) {
+        // 데이터베이스에서 게시물을 모두 조회 (Fetch Join으로 N+1 해결 및 페이징 적용)
+        Slice<Post> postSlice = postRepository.findAllWithImages(pageable);
         
         // 응답을 엔티티에서 DTO(PostResponse)로 변환
-        List<PostResponse> feedList = posts.stream()
+        List<PostResponse> feedList = postSlice.getContent().stream()
                 .map(PostResponse::from)
                 .toList();
                 
-        // 임시로 hasNext는 false 고정, 페이징은 다음 스텝에서 적용
-        return FeedResponse.of(false, feedList);
+        // slice.hasNext()를 통해 다음 페이지 여부 전달
+        return FeedResponse.of(postSlice.hasNext(), feedList);
     }
 }
