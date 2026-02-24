@@ -1,9 +1,10 @@
 package com.example.instagramclone.controller.rest;
 
+import com.example.instagramclone.domain.common.dto.FeedResponse;
+import com.example.instagramclone.domain.post.dto.response.PostResponse;
+
 import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
-import com.example.instagramclone.domain.post.entity.Post;
 import com.example.instagramclone.service.PostService;
-import com.example.instagramclone.util.FileStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,7 +46,7 @@ public class PostController {
     // TODO: [Day 7] JSON 무한 순환 참조 에러 체험을 위한 피드 조회 API 작성
     // 처음엔 List<Post> 엔티티 직접 반환으로 무한 순환 에러 체험 -> 이후 FeedResponse<PostResponse> DTO 및 Pageable 적용으로 변경
     @GetMapping
-    public List<Post> getFeed() {
+    public FeedResponse<PostResponse> getFeed() {
         return postService.getFeed();
     }
 
