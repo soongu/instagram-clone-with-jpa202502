@@ -1,11 +1,11 @@
 package com.example.instagramclone.config;
 
-import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.http.SessionCreationPolicy;
 
 @Configuration
 @EnableWebSecurity
@@ -13,35 +13,19 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // TODO: 1. CSRF 비활성화 및 기본 보안 설정을 하세요
+        // CSRF 비활성화, 폼 로그인 비활성화, 세션 생성 정책(Stateless) 설정 등
+        // Day 8 강의에서 상세 내용을 추가할 예정입니다.
+        
         http
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/h2-console/**")
-                        .disable())
-                .formLogin(form -> form.disable())
-                .httpBasic(basic -> basic.disable())
-                .headers(headers -> headers.frameOptions(frame -> frame.disable())); // H2 콘솔 사용을 위해 X-Frame-Options 비활성화
-
-        // HTTP 요청에 대한 보안 인가 설정
-        http.authorizeHttpRequests(auth -> auth
-                // FORWARD 방식의 요청(내부 포워딩)은 모두 허용
-                .dispatcherTypeMatchers(DispatcherType.FORWARD).permitAll()
-                // 인증 없이 접근 가능한 공개 경로 설정
-                .requestMatchers(
-                        "/",                // 메인 페이지
-                        "/signup",          // 회원가입 페이지
-                        "/api/auth/**",     // 인증 관련 API 엔드포인트
-                        "/error",           // 에러 페이지
-                        "/css/**",          // 정적 리소스 (CSS)
-                        "/js/**",           // 정적 리소스 (JavaScript)
-                        "/images/**", "/img/**",      // 정적 리소스 (이미지)
-                        "/favicon.ico",     // 파비콘
-                        "/h2-console/**",    // H2 콘솔
-                        "/api/**" // 파일 업로드 테스트로 임시 제한 해제
-                ).permitAll()
-                // 그 외 모든 요청은 인증된 사용자만 접근 가능
-                .anyRequest().authenticated()
-        );
+            .csrf(csrf -> csrf.disable()) // CSRF 보호 비활성화 (JWT를 사용하므로 불필요)
+            .formLogin(form -> form.disable()) // 기본 폼 로그인 비활성화
+            .httpBasic(basic -> basic.disable()) // 기본 HTTP Basic 인증 비활성화
+            .sessionManagement(session -> 
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // 세션을 사용하지 않음 (Stateless)
+            )
+            .authorizeHttpRequests(auth -> auth
+                .anyRequest().permitAll() // 임시로 모든 요청 허용 (실습에서 변경 예정)
+            );
 
         return http.build();
     }
