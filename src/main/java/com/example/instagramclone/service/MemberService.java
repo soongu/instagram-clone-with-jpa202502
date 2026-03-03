@@ -1,8 +1,6 @@
 package com.example.instagramclone.service;
 
-import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
-import com.example.instagramclone.domain.member.dto.response.SessionUser;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.CommonErrorCode;
 import com.example.instagramclone.exception.MemberErrorCode;
@@ -26,20 +24,15 @@ public class MemberService {
     @Transactional
     public void signUp(SignUpRequest signUpRequest) {
         String emailOrPhone = signUpRequest.emailOrPhone();
-        String email = null;
-        String phone = null;
+        String email = emailOrPhone.contains("@") ? emailOrPhone : null;
+        String phone = emailOrPhone.contains("@") ? null : emailOrPhone;
 
-        // 이메일/전화번호 구분 및 중복체크
-        if (emailOrPhone.contains("@")) {
-            email = emailOrPhone;
-            if (memberRepository.existsByEmail(email)) {
-                throw new MemberException(MemberErrorCode.DUPLICATE_EMAIL);
-            }
-        } else {
-            phone = emailOrPhone;
-            if (memberRepository.existsByPhone(phone)) {
-                throw new MemberException(MemberErrorCode.DUPLICATE_PHONE);
-            }
+        // 이메일/전화번호 중복체크
+        if (email != null && memberRepository.existsByEmail(email)) {
+            throw new MemberException(MemberErrorCode.DUPLICATE_EMAIL);
+        }
+        if (phone != null && memberRepository.existsByPhone(phone)) {
+            throw new MemberException(MemberErrorCode.DUPLICATE_PHONE);
         }
 
         // 사용자 이름 중복체크
@@ -63,10 +56,6 @@ public class MemberService {
         memberRepository.save(member);
     }
 
-    // TODO: 2. 중복 체크 로직을 별도 메소드로 분리하세요
-
-
-    // TODO: 3. 검증 로직을 구현하세요 (checkDuplicate)
     public boolean checkDuplicate(String type, String value) {
         return switch (type) {
             case "username" -> !memberRepository.existsByUsername(value);
@@ -76,32 +65,6 @@ public class MemberService {
         };
     }
 
-    // TODO: 4. 로그인 로직을 구현하세요 (username, email, phone 모두 지원)
-    public SessionUser login(LoginRequest request) {
-        String identifier = request.username(); // 클라이언트에서 username 필드 하나로 받음
-        Member member;
-
-        // 1. identifier 타입 분석 후 해당 값으로 Member 조회
-        if (identifier.contains("@")) {
-            member = memberRepository.findByEmail(identifier)
-                    .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
-        } else if (identifier.matches("^[0-9]+$")) { // 숫자만으로 이루어졌다면 전화번호로 간주
-            member = memberRepository.findByPhone(identifier)
-                    .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
-        } else {
-            member = memberRepository.findByUsername(identifier)
-                    .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
-        }
-
-        // 2. 비밀번호 검증
-        if (!passwordEncoder.matches(request.password(), member.getPassword())) {
-            throw new MemberException(MemberErrorCode.INVALID_CREDENTIALS);
-        }
-
-        // 3. 보안을 위해 Entity 대신 SessionUser DTO 변환 후 반환
-        return SessionUser.from(member);
-    }
-    
     // 타 도메인(Service)에서 내부적인 비즈니스 로직을 위해 Member 엔티티가 필요할 때 호출
     public Member getMemberById(Long memberId) {
         return memberRepository.findById(memberId)
