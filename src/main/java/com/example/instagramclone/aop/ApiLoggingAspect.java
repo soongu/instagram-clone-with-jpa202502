@@ -1,9 +1,11 @@
 package com.example.instagramclone.aop;
 
+import com.example.instagramclone.aop.util.LogMaskingUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -12,10 +14,23 @@ import org.springframework.stereotype.Component;
 public class ApiLoggingAspect {
 
     // TODO: [실습 1] 모든 Controller의 API 요청/응답을 가로채는 Pointcut 설정 범위를 지정하세요.
-    @Around("execution(* com.example.instagramclone.controller..*.*(..))")
+    @Around("execution(* com.example.instagramclone.controller.rest.*.*(..))")
     public Object logApi(ProceedingJoinPoint joinPoint) throws Throwable {
 
-        // TODO: [실습 2] API 요청이 들어왔을 때, 어떤 컨트롤러의 어떤 메서드가 호출되었는지 로그(INFO)로 남기세요.
+        // 1. 요청 정보 추출 (어떤 컨트롤러의 어떤 메서드인지)
+        String className = joinPoint.getTarget().getClass().getSimpleName();
+        String methodName = joinPoint.getSignature().getName();
+
+        // 2. 파라미터 정보 및 이름 추출 준비
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        String[] parameterNames = signature.getParameterNames();
+        Object[] args = joinPoint.getArgs();
+        
+        // 파라미터 [이름=값] 형태의 문자열 생성 및 마스킹 처리 (SRP 적용하여 별도 유틸로 분리)
+        String paramsString = LogMaskingUtils.buildMaskedParamsString(parameterNames, args);
+
+        // 3. 요청 로그 출력
+        log.info("[API 요청] {} / {} | 파라미터: [{}]", className, methodName, paramsString);
         
         long startTime = System.currentTimeMillis();
 
@@ -23,8 +38,10 @@ public class ApiLoggingAspect {
         Object result = joinPoint.proceed();
 
         long endTime = System.currentTimeMillis();
+        long executionTime = endTime - startTime;
 
-        // TODO: [실습 3] API 수행이 완료된 후, 수행 시간(ms)과 정상 응답 완료를 로그(INFO)로 남기세요.
+        // 3. 응답 로그 출력 (수행 시간 포함)
+        log.info("[API 응답] {} / {} (수행시간: {}ms)", className, methodName, executionTime);
         
         return result;
     }
