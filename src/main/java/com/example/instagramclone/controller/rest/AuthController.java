@@ -31,6 +31,18 @@ public class AuthController {
 
     private final MemberService memberService;
 
+    // TODO: [Live Coding] 다양한 로그 레벨을 테스트해보기 위한 임시 엔드포인트
+    @GetMapping("/test-log")
+    public ResponseEntity<String> testLogging() {
+        log.trace("👉 [TRACE] 가장 상세한 로그. 개발 환경에서도 잘 안 켭니다.");
+        log.debug("👉 [DEBUG] 개발 환경에서 디버깅용으로 남기는 로그입니다.");
+        log.info("👉 [INFO] 운영 환경에서 남겨야 할 중요한 비즈니스 정보입니다.");
+        log.warn("👉 [WARN] 시스템에 문제는 없지만, 주의해야 할 상황입니다. (예: 로그인 5회 실패)");
+        log.error("👉 [ERROR] 치명적인 에러가 발생했습니다. (예: DB 연결 끊김, 결제 실패)");
+
+        return ResponseEntity.ok("로그가 출력되었습니다! 콘솔창을 확인해보세요.");
+    }
+
     // TODO: 1. 회원가입 API를 구현하세요 (@PostMapping)
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@RequestBody @Valid SignUpRequest signUpRequest) {

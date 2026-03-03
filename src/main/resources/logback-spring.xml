@@ -4,7 +4,7 @@
     <!-- 콘솔 로그 패턴 설정 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) %magenta([%thread]) %cyan(%logger{36}) - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -23,8 +23,10 @@
     </appender>
     -->
 
-    <!-- 애플리케이션 로그 레벨 설정 -->
-    <logger name="com.example.instagramclone" level="DEBUG" />
+    <!-- 
+        * 애플리케이션 로그 레벨 설정은 application.yml 에서 제어합니다.
+        (예: logging.level.com.example.instagramclone: debug)
+    -->
 
     <!-- 전체 애플리케이션의 기본 로그 레벨 -->
     <root level="INFO">
