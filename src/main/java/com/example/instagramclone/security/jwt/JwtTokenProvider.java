@@ -16,6 +16,7 @@ import javax.crypto.SecretKey;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -86,7 +87,8 @@ public class JwtTokenProvider {
                 .setClaims(claims)           // 정보 저장
                 .setIssuer(ISSUER)           // 표준 Claim: 토큰 발급자 명시
                 .setIssuedAt(now)            // 표준 Claim: 토큰 발행 시간 (iat)
-                .setExpiration(validity)     // 표준 Claim: 설정된 만료 시간 (exp)
+                .setExpiration(validity) // 표준 Claim: 설정된 만료 시간 (exp)
+                .setId(UUID.randomUUID().toString()) // 표준 Claim: 토큰 ID (jti)
                 .signWith(key, SignatureAlgorithm.HS256)  // HS256과 대칭키(Secret Key)로 서명
                 .compact();
     }

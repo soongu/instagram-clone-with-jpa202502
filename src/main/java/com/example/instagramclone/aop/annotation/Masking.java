@@ -12,4 +12,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Masking {
+
+    // [과제 2 예시답안] 기본값을 PASSWORD로 설정하여 기존 코드의 수정 영향을 최소화합니다.
+    MaskingType type() default MaskingType.PASSWORD;
 }

@@ -4,7 +4,8 @@
     <!-- 콘솔 로그 패턴 설정 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) %magenta([%thread]) %cyan(%logger{36}) - %msg%n</pattern>
+            <!-- [과제 1 예시답안] %yellow([%X{traceId}]) 를 추가하여 노란색 꼬리표를 달아줍니다! -->
+        <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) %magenta([%thread]) %yellow([%X{traceId}]) %cyan(%logger{36}) - %msg%n</pattern>
         </encoder>
     </appender>
 
