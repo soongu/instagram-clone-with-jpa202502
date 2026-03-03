@@ -1,52 +1,133 @@
 package com.example.instagramclone.security.jwt;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import java.util.Date;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
-    // TODO: [실습 1] application.yml에 설정해둔 jwt.secret 값을 @Value로 주입받으세요.
-    private final String secretKey = "super-secret-key-for-jwt-signature-super-secret-key-for-jwt-signature";
+    private static final String ISSUER = "InstagramCloneAuthServer"; // 표준 Claim: 발급자 (iss)
 
-    // Access Token 만료 시간 (예: 1시간)
-    private final long accessTokenValidityInMilliseconds = 1000L * 60 * 60; 
+    @Value("${jwt.secret-key}")
+    private String secretKeyString; // 대칭키(HS256)용 프로퍼티 복구
 
-    /**
-     * 회원(User)의 정보를 기반으로 Access Token을 생성합니다.
-     * @param email 회원의 이메일 (또는 ID)
-     * @param role 회원의 권한 (ROLE_USER 등)
-     * @return 발급된 JWT 토큰 문자열
-     */
-    public String createToken(String email, String role) {
-        
-        // TODO: [실습 2] 토큰에 담을 정보(Payload - claims)를 세팅하세요. (예: email, role)
-        // 주의: 비밀번호 같은 민감정보는 절대 넣지 마세요! (jwt.io 시연 예정)
-        
-        Date now = new Date();
-        Date validity = new Date(now.getTime() + accessTokenValidityInMilliseconds);
+    @Value("${jwt.access-token-validity-time}")
+    private long accessTokenValidityInMilliseconds;
 
-        // TODO: [실습 3] Header, Payload, Signature 를 조합하여 토큰을 생성(서명)하는 로직을 작성하세요.
-        // HmacSHA256 알고리즘과 주입받은 secretKey를 사용합니다.
+    @Value("${jwt.refresh-token-validity-time}")
+    private long refreshTokenValidityInMilliseconds;
+
+    private SecretKey key;
+
+    @PostConstruct
+    public void init() {
+        // [아키텍처 의사결정] 모놀리식 아키텍처 환경에서는 대칭키(HS256)를 사용하는 것이 복잡도 대비 가장 합당합니다.
+        // MSA 환경(ES256/비대칭키)과의 Trade-off를 고려한 선택입니다.
+        byte[] keyBytes = Decoders.BASE64.decode(secretKeyString);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret-key는 최소 32바이트(256bit) 이상이어야 합니다.");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         
-        return "temporary-token-string"; // 임시 반환값
+        log.info("HS256 대칭키(Secret Key)가 성공적으로 초기화되었습니다.");
     }
 
     /**
-     * 토큰에서 유저 이메일(Subject)을 추출합니다.
+     * 회원(User)의 정보를 기반으로 Access Token을 생성합니다.
+     * @param memberId 회원의 고유 식별자 (PK)
+     * @param role 회원의 권한 (ROLE_USER 등)
+     * @return 발급된 Access Token 문자열
      */
-    public String getEmail(String token) {
-        // TODO: [실습 4] 전달받은 토큰의 서명을 확인하고, Payload에서 이메일을 추출해 반환하세요.
-        return null;
+    public String createAccessToken(Long memberId, String role) {
+        return buildToken(memberId, role, accessTokenValidityInMilliseconds);
+    }
+
+    /**
+     * 회원(User)의 정보를 기반으로 Refresh Token을 생성합니다.
+     * (Refresh Token은 권한 정보 없이 PK만 담는 것이 일반적입니다)
+     * @param memberId 회원의 고유 식별자 (PK)
+     * @return 발급된 Refresh Token 문자열
+     */
+    public String createRefreshToken(Long memberId) {
+        return buildToken(memberId, null, refreshTokenValidityInMilliseconds);
+    }
+
+    /**
+     * 실제 JWT 토큰 생성을 담당하는 내부 헬퍼 메서드
+     */
+    private String buildToken(Long memberId, String role, long validityTimeInMs) {
+        // 1. 토큰에 담을 정보(Payload - claims) 세팅
+        Claims claims = Jwts.claims().setSubject(String.valueOf(memberId)); // PK를 Subject로 지정
+        if (role != null) {
+            claims.put("role", role); // 부가 정보(Custom Claim) 추가
+        }
+
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + validityTimeInMs);
+
+        // 2. 토큰 생성 (Header, Payload, Signature 조합)
+        // 모놀리식: 동일한 Secret Key를 사용하여 서명(HS256)
+        return Jwts.builder()
+                .setClaims(claims)           // 정보 저장
+                .setIssuer(ISSUER)           // 표준 Claim: 토큰 발급자 명시
+                .setIssuedAt(now)            // 표준 Claim: 토큰 발행 시간 (iat)
+                .setExpiration(validity)     // 표준 Claim: 설정된 만료 시간 (exp)
+                .signWith(key, SignatureAlgorithm.HS256)  // HS256과 대칭키(Secret Key)로 서명
+                .compact();
+    }
+
+    /**
+     * 토큰에서 유저의 PK(Subject)를 추출합니다.
+     */
+    public Long getMemberId(String token) {
+        // 검증 시에도 발급할 때 사용했던 동일한 대칭키 및 Issuer 확인
+        String subject = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .requireIssuer(ISSUER) // 내가 발급한 토큰이 맞는지 확인
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
+        
+        return Long.parseLong(subject);
     }
 
     /**
      * 토큰의 유효성 및 만료 기간을 검사합니다.
      */
     public boolean validateToken(String token) {
-        // TODO: [실습 5] 토큰 파싱 시 발생할 수 있는 예외(만료, 위조, 지원되지 않는 포맷 등)를 잡아서 
-        // 유효하면 true, 아니면 false를 반환하도록 작성하세요.
+        try {
+            // 역시 검증이므로 동일한 Secret Key 사용 및 Issuer 확인
+            Jwts.parserBuilder()
+                .setSigningKey(key)
+                .requireIssuer(ISSUER) // 내가 발급한 토큰이 맞는지 확인
+                .build()
+                .parseClaimsJws(token);
+            return true;
+        } catch (SecurityException | MalformedJwtException | SignatureException e) {
+            log.warn("잘못된 JWT 서명입니다. (위조 의심): {}", e.getMessage());
+        } catch (ExpiredJwtException e) {
+            log.info("만료된 JWT 토큰입니다. (권한 회수 및 재로그인 요망): {}", e.getMessage());
+        } catch (UnsupportedJwtException e) {
+            log.warn("지원되지 않는 JWT 토큰입니다.: {}", e.getMessage());
+        } catch (IllegalArgumentException e) {
+            log.warn("JWT 토큰이 잘못되었습니다.: {}", e.getMessage());
+        }
         return false;
     }
 }
