@@ -2,6 +2,9 @@ package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.response.AuthTokens;
+import com.example.instagramclone.domain.member.entity.Member;
+import com.example.instagramclone.exception.MemberErrorCode;
+import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.repository.MemberRepository;
 import com.example.instagramclone.security.jwt.JwtTokenProvider;
 
@@ -21,12 +24,27 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
+    @Transactional
     public AuthTokens login(LoginRequest request) {
-        // TODO: [실습 3] TDD를 통해 로그인 비즈니스 로직을 완성하세요.
-        // Hint 1. request.username() (이메일, 전화번호, 닉네임) 으로 Member 조회
-        // Hint 2. 검색 실패 시 MemberException(INVALID_CREDENTIALS) 발생시켜야 함
-        // Hint 3. 비밀번호 검증 (passwordEncoder.matches) 실패 시 예외 발생시켜야 함
-        // Hint 4. 성공 시 jwtTokenProvider를 통해 Access, Refresh Token 발급 후 AuthTokens 반환
-        return null; // 처음엔 테스트 코드를 실패(Red)하게 만들기 위해 일부러 null 반환
+        // [TDD Step 2] 원본 코드 작성 (로그인 실패 - 없는 회원)
+        // 요구사항: username, email, phone 셋 중 하나를 선택해 로그인
+        String loginId = request.username(); // 사용자 입력값 하나로 통일해서 검색 시도
+        Member member = memberRepository.findByUsernameOrEmailOrPhone(loginId, loginId, loginId)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.INVALID_CREDENTIALS));
+
+        // [TDD Step 4] 원본 코드 작성 (로그인 실패 - 비밀번호 불일치)
+        // 요구사항: 비밀번호가 틀렸을 때도 동일한 보안 메시지를 반환해야 함 (보안 고려)
+        if (!passwordEncoder.matches(request.password(), member.getPassword())) {
+            throw new MemberException(MemberErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // [TDD Step 6] 원본 코드 작성 (로그인 성공 - 토큰 발급)
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
+
+        // Refresh Token DB 저장 로직 수행
+        member.updateRefreshToken(refreshToken);
+
+        return new AuthTokens(accessToken, refreshToken);
     }
 }

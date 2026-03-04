@@ -1,8 +1,10 @@
 package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.member.dto.request.LoginRequest;
+import com.example.instagramclone.domain.member.dto.response.AuthTokens;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberException;
+import com.example.instagramclone.exception.MemberErrorCode;
 import com.example.instagramclone.repository.MemberRepository;
 import com.example.instagramclone.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
@@ -16,9 +18,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -35,47 +42,80 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
+    // [TDD Step 1] 테스트 코드 작성 (로그인 실패 - 없는 회원)
     @Test
-    @DisplayName("로그인 실패 - 존재하지 않는 회원")
+    @DisplayName("로그인 실패 - 존재하지 않는 회원 (Username, Email, Phone 3가지 모두 하나로 통일됨)")
     void login_fail_user_not_found() {
-        // TODO: [실습 2-1] Mockito를 활용하여 회원이 존재하지 않을 때 예외가 발생하는지 검증하세요.
-        // 1. given: LoginRequest 객체 생성 (더미 데이터)
+        // given
         LoginRequest request = new LoginRequest("not_found_user", "password123!");
-        
-        // 2. given: memberRepository.findBy...() 호출 시 Optional.empty() 반환되도록 stubbing
-        // Note: 로그인 시 username으로 회원을 조회한다고 가정
-        given(memberRepository.findByUsername(anyString())).willReturn(Optional.empty());
 
-        // 3. when & then: authService.login() 호출 시 MemberException 발생하는지 검증 (assertThrows 사용)
-        assertThrows(MemberException.class, () -> authService.login(request));
+        // memberRepository.findByUsernameOrEmailOrPhone() 호출 시 Optional.empty() 반환되도록 stubbing
+        given(memberRepository.findByUsernameOrEmailOrPhone(request.username(), request.username(), request.username())).willReturn(Optional.empty());
+
+        // when & then
+        // 회원이 존재하지 않을 때 INVALID_CREDENTIALS 반환하는지 검증
+        MemberException exception = assertThrows(MemberException.class, () -> authService.login(request));
+        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_CREDENTIALS);
     }
 
+    // [TDD Step 3] 테스트 코드 작성 (로그인 실패 - 비밀번호 불일치)
     @Test
-    @DisplayName("로그인 실패 - 비밀번호 불일치")
+    @DisplayName("로그인 실패 - 비밀번호 불일치 시 없는 회원과 동일한 예외 반환")
     void login_fail_invalid_password() {
-        // TODO: [실습 2-2] 비밀번호가 틀렸을 때 예외가 발생하는지 검증하세요.
-        // 1. given: 가짜 Member 엔티티 생성 후 repository 동작 stubbing
+        // given
         LoginRequest request = new LoginRequest("test_user", "wrong_password");
-        
+
         Member mockMember = Member.builder()
                 .username("test_user")
                 .password("encoded_correct_password")
                 .build();
         ReflectionTestUtils.setField(mockMember, "id", 1L);
-                
-        // Note: 현재 UserService 등에 의해 username 으로 회원을 조회한다고 가정
-        given(memberRepository.findByUsername(anyString())).willReturn(Optional.of(mockMember));
-        
-        // 2. given: passwordEncoder.matches() 호출 시 false 반환되도록 stubbing
-        given(passwordEncoder.matches("wrong_password", "encoded_correct_password")).willReturn(false);
 
-        // 3. when & then: 예외 발생 검증
-        assertThrows(MemberException.class, () -> authService.login(request));
+        given(memberRepository.findByUsernameOrEmailOrPhone(
+                eq(request.username()), eq(request.username()), eq(request.username())))
+                .willReturn(Optional.of(mockMember));
+
+        given(passwordEncoder.matches(eq(request.password()), eq(mockMember.getPassword())))
+                .willReturn(false);
+
+        // when & then
+        MemberException exception = assertThrows(MemberException.class, () -> authService.login(request));
+        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_CREDENTIALS);
     }
-    
+
+    // [TDD Step 5] 테스트 코드 작성 (로그인 성공)
     @Test
     @DisplayName("로그인 성공 - 토큰 페어 정상 발급")
     void login_success() {
-        // TODO: [실습 3-1] 나중에 AuthService.login() 실제 비즈니스 로직을 완성한 뒤에 성공 케이스 테스트도 작성해보세요.
+        // given
+        LoginRequest request = new LoginRequest("test_user", "correct_password");
+
+        Member mockMember = Member.builder()
+                .username("test_user")
+                .password("encoded_correct_password")
+                .build();
+        ReflectionTestUtils.setField(mockMember, "id", 1L);
+
+        given(memberRepository.findByUsernameOrEmailOrPhone(
+                eq(request.username()), eq(request.username()), eq(request.username())))
+                .willReturn(Optional.of(mockMember));
+
+        given(passwordEncoder.matches(eq(request.password()), eq(mockMember.getPassword())))
+                .willReturn(true);
+
+        given(jwtTokenProvider.createAccessToken(eq(1L), anyString())).willReturn("mock.access.token");
+        given(jwtTokenProvider.createRefreshToken(eq(1L))).willReturn("mock.refresh.token");
+
+        // when
+        AuthTokens tokens = authService.login(request);
+
+        // then
+        assertThat(tokens).isNotNull();
+        assertThat(tokens.accessToken()).isEqualTo("mock.access.token");
+        assertThat(tokens.refreshToken()).isEqualTo("mock.refresh.token");
+
+        // 행동 검증 (실무 필수)
+        then(jwtTokenProvider).should().createAccessToken(eq(1L), anyString());
+        then(jwtTokenProvider).should().createRefreshToken(eq(1L));
     }
 }
