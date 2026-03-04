@@ -2,6 +2,7 @@ package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.response.AuthTokens;
+import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.exception.MemberErrorCode;
@@ -49,8 +50,8 @@ class AuthServiceTest {
         // given
         LoginRequest request = new LoginRequest("not_found_user", "password123!");
 
-        // memberRepository.findByUsernameOrEmailOrPhone() 호출 시 Optional.empty() 반환되도록 stubbing
-        given(memberRepository.findByUsernameOrEmailOrPhone(request.username(), request.username(), request.username())).willReturn(Optional.empty());
+        // "not_found_user"는 정규식에 의해 username 조회로 분기되므로 findByUsername()을 stubbing
+        given(memberRepository.findByUsername(request.username())).willReturn(Optional.empty());
 
         // when & then
         // 회원이 존재하지 않을 때 INVALID_CREDENTIALS 반환하는지 검증
@@ -71,8 +72,7 @@ class AuthServiceTest {
                 .build();
         ReflectionTestUtils.setField(mockMember, "id", 1L);
 
-        given(memberRepository.findByUsernameOrEmailOrPhone(
-                eq(request.username()), eq(request.username()), eq(request.username())))
+        given(memberRepository.findByUsername(eq(request.username())))
                 .willReturn(Optional.of(mockMember));
 
         given(passwordEncoder.matches(eq(request.password()), eq(mockMember.getPassword())))
@@ -96,8 +96,7 @@ class AuthServiceTest {
                 .build();
         ReflectionTestUtils.setField(mockMember, "id", 1L);
 
-        given(memberRepository.findByUsernameOrEmailOrPhone(
-                eq(request.username()), eq(request.username()), eq(request.username())))
+        given(memberRepository.findByUsername(eq(request.username())))
                 .willReturn(Optional.of(mockMember));
 
         given(passwordEncoder.matches(eq(request.password()), eq(mockMember.getPassword())))
@@ -107,12 +106,14 @@ class AuthServiceTest {
         given(jwtTokenProvider.createRefreshToken(eq(1L))).willReturn("mock.refresh.token");
 
         // when
-        AuthTokens tokens = authService.login(request);
+        LoginResponse response = authService.login(request);
 
         // then
-        assertThat(tokens).isNotNull();
-        assertThat(tokens.accessToken()).isEqualTo("mock.access.token");
-        assertThat(tokens.refreshToken()).isEqualTo("mock.refresh.token");
+        assertThat(response).isNotNull();
+        assertThat(response.tokens().accessToken()).isEqualTo("mock.access.token");
+        assertThat(response.tokens().refreshToken()).isEqualTo("mock.refresh.token");
+        assertThat(response.user().id()).isEqualTo(mockMember.getId());
+        assertThat(response.user().username()).isEqualTo(mockMember.getUsername());
 
         // 행동 검증 (실무 필수)
         then(jwtTokenProvider).should().createAccessToken(eq(1L), anyString());
