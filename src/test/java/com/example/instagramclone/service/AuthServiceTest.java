@@ -1,7 +1,6 @@
 package com.example.instagramclone.service;
 
 import com.example.instagramclone.domain.member.dto.request.LoginRequest;
-import com.example.instagramclone.domain.member.dto.response.AuthTokens;
 import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberException;
@@ -20,9 +19,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -55,8 +52,9 @@ class AuthServiceTest {
 
         // when & then
         // 회원이 존재하지 않을 때 INVALID_CREDENTIALS 반환하는지 검증
-        MemberException exception = assertThrows(MemberException.class, () -> authService.login(request));
-        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_CREDENTIALS);
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(MemberException.class)
+                .hasMessage(MemberErrorCode.INVALID_CREDENTIALS.getMessage());
     }
 
     // [TDD Step 3] 테스트 코드 작성 (로그인 실패 - 비밀번호 불일치)
@@ -79,8 +77,9 @@ class AuthServiceTest {
                 .willReturn(false);
 
         // when & then
-        MemberException exception = assertThrows(MemberException.class, () -> authService.login(request));
-        assertThat(exception.getErrorCode()).isEqualTo(MemberErrorCode.INVALID_CREDENTIALS);
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(MemberException.class)
+                .hasMessage(MemberErrorCode.INVALID_CREDENTIALS.getMessage());
     }
 
     // [TDD Step 5] 테스트 코드 작성 (로그인 성공)

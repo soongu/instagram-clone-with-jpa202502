@@ -9,8 +9,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 //@SpringBootTest // 단위 테스트의 빠른 속도를 체감하기 위해 스프링 컨텍스트를 띄우지 않습니다.
 class JwtTokenProviderTest {
@@ -50,7 +48,7 @@ class JwtTokenProviderTest {
         assertThat(parsedMemberId).isEqualTo(memberId);
 
         // 토큰 자체가 유효한지 검증
-        assertTrue(jwtTokenProvider.validateToken(accessToken));
+        assertThat(jwtTokenProvider.validateToken(accessToken)).isTrue();
     }
 
     @Test
@@ -67,7 +65,7 @@ class JwtTokenProviderTest {
         Long parsedMemberId = jwtTokenProvider.getMemberId(refreshToken);
         assertThat(parsedMemberId).isEqualTo(memberId);
 
-        assertTrue(jwtTokenProvider.validateToken(refreshToken));
+        assertThat(jwtTokenProvider.validateToken(refreshToken)).isTrue();
     }
 
     @Test
@@ -82,6 +80,6 @@ class JwtTokenProviderTest {
 
         // then: validateToken 메서드는 예외를 던지지 않고 내부적으로 catch 하여 false를 반환해야 합니다.
         boolean isValid = jwtTokenProvider.validateToken(expiredToken);
-        assertFalse(isValid);
+        assertThat(isValid).isFalse();
     }
 }

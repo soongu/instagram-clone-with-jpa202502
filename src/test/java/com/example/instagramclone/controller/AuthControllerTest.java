@@ -102,4 +102,81 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.error.message").value("아이디 또는 비밀번호가 일치하지 않습니다."))
                 .andExpect(jsonPath("$.error.path").value("/api/auth/login"));
     }
+
+    // ===============================================
+    // 회원가입(SignUp) API 통합 테스트
+    // ===============================================
+
+    @Test
+    @DisplayName("회원가입 API 성공 흐름 검증 (201 Created)")
+    void signup_api_success() throws Exception {
+        // [TDD Step] 정상적인 회원가입 요청
+        // given
+        SignUpRequest request = SignUpRequest.builder()
+                .username("new_signup_user")
+                .password("Password123!") // 대소문자, 숫자, 특수문자 포함
+                .emailOrPhone("newuser@test.com")
+                .name("New User")
+                .build();
+        String content = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isCreated()) // 201 Created
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.username").value("new_signup_user"))
+                .andExpect(jsonPath("$.data.message").value("회원가입이 완료되었습니다."));
+    }
+
+    @Test
+    @DisplayName("회원가입 API 실패 검증 - 중복 가입 시도 (400 Bad Request)")
+    void signup_api_fail_duplicate() throws Exception {
+        // [TDD Step] 기존에 가입된 유저 정보로 다시 가입을 시도할 때 예외 발생 검증
+        // given
+        // setUp() 에서 생성된 "integration_user" 와 동일한 username 사용
+        SignUpRequest request = SignUpRequest.builder()
+                .username("integration_user")
+                .password("ValidPass123!")
+                .emailOrPhone("other_email@test.com")
+                .name("Duplicate User")
+                .build();
+        String content = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest()) // MemberErrorCode.DUPLICATE_USERNAME (HTTP 400)
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.status").value(400))
+                .andExpect(jsonPath("$.error.code").value("M002"))
+                .andExpect(jsonPath("$.error.message").value("이미 존재하는 사용자 이름입니다."))
+                .andExpect(jsonPath("$.error.path").value("/api/auth/signup"));
+    }
+
+    @Test
+    @DisplayName("회원가입 API 실패 검증 - 유효성 검사 실패 (@Valid)")
+    void signup_api_fail_validation() throws Exception {
+        // [TDD Step] 비밀번호 포맷 등 Bean Validation(@Valid) 처리 검증
+        // given
+        SignUpRequest request = SignUpRequest.builder()
+                .username("usr") // 4자 미만이라 통과 실패
+                .password("1234") // 규칙 불만족이라 통과 실패 
+                .emailOrPhone("invalid_test.com")
+                .name("")
+                .build();
+        String content = objectMapper.writeValueAsString(request);
+
+        // when & then
+        mockMvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(content))
+                .andExpect(status().isBadRequest()) // MethodArgumentNotValidException 발생하여 400 반환
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.status").value(400))
+                .andExpect(jsonPath("$.error.code").value("C001")) // CommonErrorCode.INVALID_INPUT_VALUE
+                .andExpect(jsonPath("$.error.path").value("/api/auth/signup"));
+    }
 }
