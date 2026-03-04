@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.http.ResponseEntity;
+
 @Slf4j
 @Aspect
 @Component
@@ -54,12 +59,19 @@ public class ApiLoggingAspect {
 
             // 파라미터 [이름=값] 형태의 문자열 생성 및 마스킹 처리 (SRP 적용하여 별도 유틸로 분리)
             String paramsString = LogMaskingUtils.buildMaskedParamsString(
-                    filteredParamNames.toArray(new String[0]), 
+                    filteredParamNames.toArray(new String[0]),
                     filteredArgs.toArray()
             );
 
-            // 3. 요청 로그 출력
-            log.info("[API 요청] {} / {} | 파라미터: [{}]", className, methodName, paramsString);
+            // 3. 요청 HTTP Method, URI 추출
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+            HttpServletRequest request = attributes.getRequest();
+            String httpMethod = request.getMethod();
+            String requestUri = request.getRequestURI();
+
+            // 4. 요청 로그 출력
+            log.info("[API 요청] {} {} | {} / {} | 파라미터: [{}]",
+                    httpMethod, requestUri, className, methodName, paramsString);
 
             long startTime = System.currentTimeMillis();
 
@@ -69,8 +81,15 @@ public class ApiLoggingAspect {
             long endTime = System.currentTimeMillis();
             long executionTime = endTime - startTime;
 
-            // 3. 응답 로그 출력 (수행 시간 포함)
-            log.info("[API 응답] {} / {} (수행시간: {}ms)", className, methodName, executionTime);
+            // ResponseEntity 인 경우 내부 body 추출
+            Object responseBody = result;
+            if (result instanceof ResponseEntity<?> responseEntity) {
+                responseBody = responseEntity.getBody();
+            }
+
+            // 5. 응답 로그 출력 (수행 시간 포함)
+            log.info("[API 응답] {} {} | {} / {} (수행시간: {}ms) | 응답: {}",
+                    httpMethod, requestUri, className, methodName, executionTime, responseBody);
             return result;
         } finally {
             // [과제 1 예시답안] finally 블록에서 MDC 컨텍스트 제거 (스레드 풀 재사용 시 필수!)
@@ -100,7 +119,7 @@ public class ApiLoggingAspect {
                 if (item != null) {
                     Class<?> itemClass = item.getClass();
                     if (!isWrapperType(itemClass) && itemClass != String.class &&
-                        !itemClass.getPackageName().startsWith("com.example.instagramclone")) {
+                            !itemClass.getPackageName().startsWith("com.example.instagramclone")) {
                         return false; // 컬렉션 내부에 허용되지 않은 타입이 있으면 전체 제외
                     }
                 }
@@ -114,8 +133,8 @@ public class ApiLoggingAspect {
 
     private boolean isWrapperType(Class<?> clazz) {
         return clazz == Boolean.class || clazz == Character.class ||
-               clazz == Byte.class || clazz == Short.class ||
-               clazz == Integer.class || clazz == Long.class ||
-               clazz == Float.class || clazz == Double.class;
+                clazz == Byte.class || clazz == Short.class ||
+                clazz == Integer.class || clazz == Long.class ||
+                clazz == Float.class || clazz == Double.class;
     }
 }
