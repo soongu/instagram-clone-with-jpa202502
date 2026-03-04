@@ -4,8 +4,8 @@ import com.example.instagramclone.constant.AuthConstants;
 import com.example.instagramclone.domain.common.dto.ApiResponse;
 import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
-import com.example.instagramclone.domain.member.dto.response.AuthTokens;
 import com.example.instagramclone.domain.member.dto.response.DuplicateCheckResponse;
+import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import com.example.instagramclone.domain.member.dto.response.SignUpResponse;
 import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.service.AuthService;
@@ -54,11 +54,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // TODO: [실습 5] AuthService를 활용하는 JWT 기반의 Stateless 로그인 API를 완성하세요.
+    // [실습 5] 진짜 클라이언트처럼, AuthController 통합 테스트(Integration Test) 시연을 위한 AuthController 완성
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthTokens>> login(@RequestBody @Valid LoginRequest loginRequest) {
-        // Hint: authService.login() 결과물을 반환
-        return null;
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest loginRequest) {
+        LoginResponse response = authService.login(loginRequest);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/logout")
