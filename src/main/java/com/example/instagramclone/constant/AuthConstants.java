@@ -9,6 +9,8 @@ public class AuthConstants {
     public static final String SIGNUP_SUCCESS_MESSAGE = "회원가입이 완료되었습니다.";
     public static final String COOKIE_PATH_ROOT = "/";
     public static final String SESSION_KEY = "LOGIN_MEMBER";
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+    public static final String BEARER_PREFIX = "Bearer ";
     
     private AuthConstants() {
         // Prevent instantiation

@@ -51,7 +51,7 @@ public class AuthService {
         }
 
         // 토큰 발급
-        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().getKey());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
         
         // TODO: [실습 5-3] 발급한 RefreshToken을 DB에 저장하세요. (RefreshTokenRepository 활용)

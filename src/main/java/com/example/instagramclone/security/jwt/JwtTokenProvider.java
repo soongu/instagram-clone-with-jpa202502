@@ -97,16 +97,27 @@ public class JwtTokenProvider {
      * 토큰에서 유저의 PK(Subject)를 추출합니다.
      */
     public Long getMemberId(String token) {
-        // 검증 시에도 발급할 때 사용했던 동일한 대칭키 및 Issuer 확인
-        String subject = Jwts.parserBuilder()
+        String subject = parseClaims(token).getSubject();
+        return Long.parseLong(subject);
+    }
+
+    /**
+     * 토큰에서 유저의 권한(Role)을 추출합니다.
+     */
+    public String getRole(String token) {
+        return parseClaims(token).get("role", String.class);
+    }
+
+    /**
+     * 토큰에서 Claim(Payload) 정보를 파싱하고 서명/만료를 검증합니다.
+     */
+    private Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .requireIssuer(ISSUER) // 내가 발급한 토큰이 맞는지 확인
                 .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
-        
-        return Long.parseLong(subject);
+                .getBody();
     }
 
     /**
@@ -114,12 +125,7 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            // 역시 검증이므로 동일한 Secret Key 사용 및 Issuer 확인
-            Jwts.parserBuilder()
-                .setSigningKey(key)
-                .requireIssuer(ISSUER) // 내가 발급한 토큰이 맞는지 확인
-                .build()
-                .parseClaimsJws(token);
+            parseClaims(token);
             return true;
         } catch (SecurityException | MalformedJwtException | SignatureException e) {
             log.warn("잘못된 JWT 서명입니다. (위조 의심): {}", e.getMessage());
