@@ -11,10 +11,10 @@ spring:
     console:
       enabled: true
       path: /h2-console
-  mvc:
-    view:
-      prefix: /WEB-INF/views/
-      suffix: .jsp
+#  mvc:
+#    view:
+#      prefix: /WEB-INF/views/
+#      suffix: .jsp
   servlet:
     multipart:
       max-file-size: 10MB

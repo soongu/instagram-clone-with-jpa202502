@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 
@@ -57,6 +58,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.PAYLOAD_TOO_LARGE)
                 .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.INVALID_INPUT_VALUE, "파일 업로드 용량이 초과되었습니다.", request.getRequestURI())));
+    }
+
+    /**
+     * 정적 리소스를 찾을 수 없을 때 발생하는 예외 (404 Not Found)
+     * 파비콘이나 정적 파일 요청이 실패할 때 (예: .well-known/appspecific/com.chrome.devtools.json) 에러 로그를 남기지 않고 무시합니다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(NoResourceFoundException e, HttpServletRequest request) {
+        log.debug("NoResourceFoundException : {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.fail(buildErrorResponse(CommonErrorCode.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다.", request.getRequestURI())));
     }
 
     /**

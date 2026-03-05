@@ -77,6 +77,11 @@ public class LogMaskingUtils {
             case PASSWORD -> "******";
             case EMAIL -> {
                 int atIndex = value.indexOf('@');
+                if (atIndex == -1) {
+                    // '@'가 없는 경우 (예: 전화번호) -> 뒤 4자리 마스킹 처리
+                    if (value.length() <= 4) yield "****";
+                    yield value.substring(0, value.length() - 4) + "****";
+                }
                 // 이메일 형식이 아니거나 앞자리가 너무 짧으면 통째로 마스킹
                 if (atIndex <= 3) yield "***" + value.substring(atIndex);
                 // 앞 3글자 + *** + @도메인

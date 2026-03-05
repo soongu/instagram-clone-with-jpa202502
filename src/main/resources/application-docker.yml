@@ -7,10 +7,10 @@ spring:
     url: jdbc:mariadb://mariadb:3306/instagram_clone?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
     username: instagram_user
     password: instagram_password
-  mvc:
-    view:
-      prefix: /WEB-INF/views/
-      suffix: .jsp
+#  mvc:
+#    view:
+#      prefix: /WEB-INF/views/
+#      suffix: .jsp
   servlet:
     multipart:
       max-file-size: 10MB
