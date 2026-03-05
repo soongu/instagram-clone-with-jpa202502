@@ -1,15 +1,22 @@
 package com.example.instagramclone.config;
 
+import com.example.instagramclone.security.jwt.JwtAuthenticationFilter;
+import com.example.instagramclone.security.jwt.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -22,11 +29,18 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // 세션을 사용하지 않음 (Stateless)
             )
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll() // 임시로 모든 요청 허용 (실습에서 변경 예정)
+                .anyRequest().permitAll() 
+            )
+            // Step 2: "SecurityContext 에 신분증 걸어두기" (Filter 등록)
+            // 우리가 직접 만든 JwtAuthenticationFilter 객체를 생성하여 필터 체인에 끼워 넣습니다.
+            // Q. 왜 UsernamePasswordAuthenticationFilter '앞(Before)'에 넣나요?
+            // A. 스프링 시큐리티의 기본 인증 동작(폼 로그인 시 유저네임/비번 검사)이 일어나기 전에, 
+            //    우리가 가로챈 JWT 토큰이 유효하다면 "이 사람은 이미 통과!"라고 인증 도장(Authentication)을 
+            //    미리 쾅 찍어주기 위해서입니다. 
+            .addFilterBefore(
+                new JwtAuthenticationFilter(jwtTokenProvider), 
+                UsernamePasswordAuthenticationFilter.class
             );
-
-        // TODO: [실습 4] 우리가 만든 JwtAuthenticationFilter를 Spring Security 필터 체인에 등록하세요.
-        // 위치: UsernamePasswordAuthenticationFilter.class 이전에 동작하도록 설정해야 합니다.
 
         return http.build();
     }
