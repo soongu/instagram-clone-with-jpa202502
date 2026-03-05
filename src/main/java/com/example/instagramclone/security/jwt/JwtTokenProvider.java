@@ -33,6 +33,8 @@ public class JwtTokenProvider {
     @Value("${jwt.refresh-token-validity-time}")
     private long refreshTokenValidityInMilliseconds;
 
+    
+
     private SecretKey key;
 
     @PostConstruct
@@ -137,5 +139,9 @@ public class JwtTokenProvider {
             log.warn("JWT 토큰이 잘못되었습니다.: {}", e.getMessage());
         }
         return false;
+    }
+
+    public int getRefreshTokenValidityInSeconds() {
+        return (int) (refreshTokenValidityInMilliseconds / 1000);
     }
 }

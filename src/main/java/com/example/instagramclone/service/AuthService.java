@@ -7,8 +7,9 @@ import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberErrorCode;
 import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.repository.MemberRepository;
+import com.example.instagramclone.domain.member.entity.RefreshToken;
+import com.example.instagramclone.repository.RefreshTokenRepository;
 import com.example.instagramclone.security.jwt.JwtTokenProvider;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final MemberRepository memberRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -50,15 +52,23 @@ public class AuthService {
             throw new MemberException(MemberErrorCode.INVALID_CREDENTIALS);
         }
 
-        // 토큰 발급
-        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().getKey());
-        String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
+        // 토큰 발급 (공통 로직 메서드 분리)
+        AuthTokens tokens = generateTokens(member);
         
         // TODO: [실습 5-3] 발급한 RefreshToken을 DB에 저장하세요. (RefreshTokenRepository 활용)
         // 기존에 이미 발급받은 토큰이 있다면 업데이트하고, 없다면 새로 저장해야 합니다.
+        refreshTokenRepository.findByMemberId(member.getId())
+                .ifPresentOrElse(
+                        rt -> rt.updateToken(tokens.refreshToken()), // 기존 토큰 업데이트 (더티체킹 기법)
+                        () -> refreshTokenRepository.save( // 신규 토큰 저장
+                                RefreshToken.builder()
+                                        .memberId(member.getId())
+                                        .token(tokens.refreshToken())
+                                        .build()
+                        )
+                );
 
         // [Refactor] 프론트엔드 요구사항에 맞춘 풍부한 응답 DTO 반환 (정적 팩토리 메서드 활용)
-        AuthTokens tokens = new AuthTokens(accessToken, refreshToken);
         return LoginResponse.of(tokens, member);
     }
 
@@ -66,11 +76,41 @@ public class AuthService {
     public AuthTokens reissue(String refreshToken) {
         // TODO: [실습 6-2] 토큰 재발급 로직을 구현하세요.
         // 1. 전달받은 refreshToken 의 유효성을 검사합니다. (jwtTokenProvider 활용)
-        // 2. RefreshTokenRepository 에서 해당 토큰으로 DB에 저장된 토큰 엔티티를 찾습니다.
-        // 3. 토큰이 유효하다면, 멤버 정보를 바탕으로 새로운 AccessToken 과 RefreshToken 을 생성합니다.
-        // 4. DB의 RefreshToken 엔티티 값을 새로운 토큰으로 업데이트합니다.
-        // 5. 발급된 두 종류의 토큰을 AuthTokens 객체에 담아 반환합니다.
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS);
+        }
 
-        return null;
+        // 2. RefreshTokenRepository 에서 해당 토큰으로 DB에 저장된 토큰 엔티티를 찾습니다.
+        RefreshToken tokenEntity = refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS));
+
+        // 3. 토큰이 유효하다면, 멤버 정보를 바탕으로 새로운 AccessToken 과 RefreshToken 을 생성합니다.
+        Member member = memberRepository.findById(tokenEntity.getMemberId())
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        AuthTokens newTokens = generateTokens(member);
+
+        // 4. DB의 RefreshToken 엔티티 값을 새로운 토큰으로 업데이트합니다. (RTR 패턴 적용)
+        tokenEntity.updateToken(newTokens.refreshToken());
+
+        // 5. 발급된 두 종류의 토큰을 AuthTokens 객체에 담아 반환합니다.
+        return newTokens;
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        if (refreshToken != null) {
+            refreshTokenRepository.findByToken(refreshToken)
+                    .ifPresent(refreshTokenRepository::delete);
+        }
+    }
+
+    /**
+     * [Refactor] Access / Refresh Token 발급 공통 로직
+     */
+    private AuthTokens generateTokens(Member member) {
+        String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().getKey());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
+        return new AuthTokens(accessToken, refreshToken);
     }
 }

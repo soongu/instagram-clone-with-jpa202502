@@ -8,11 +8,14 @@ import com.example.instagramclone.domain.member.dto.response.DuplicateCheckRespo
 import com.example.instagramclone.domain.member.dto.response.LoginResponse;
 import com.example.instagramclone.domain.member.dto.response.AuthTokens;
 import com.example.instagramclone.domain.member.dto.response.SignUpResponse;
+import com.example.instagramclone.security.jwt.JwtTokenProvider;
 import com.example.instagramclone.service.AuthService;
 import com.example.instagramclone.service.MemberService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.example.instagramclone.exception.MemberException;
+import com.example.instagramclone.exception.MemberErrorCode;
+import com.example.instagramclone.util.CookieUtils;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,6 +37,8 @@ public class AuthController {
 
     private final MemberService memberService;
     private final AuthService authService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final CookieUtils cookieUtils;
 
     
     @PostMapping("/signup")
@@ -59,30 +65,60 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletResponse response) {
         LoginResponse loginResponse = authService.login(loginRequest);
 
-        // TODO: [실습 5-4] AuthService에서 반환받은 loginResponse 안에 있는 RefreshToken을
         // HttpOnly 옵션과 Secure 옵션을 설정한 쿠키(Cookie)로 생성하여 HttpServletResponse 객체에 추가하세요.
         // 쿠키 이름은 "refresh_token" 으로 설정합니다.
+        
+        // 주의: AuthTokens DTO에서 @JsonIgnore 를 설정하여 클라이언트의 JSON 바디에는 노출되지 않지만,
+        // 서버에서는 loginResponse.tokens().refreshToken() 으로 안전하게 꺼내 쓸 수 있습니다.
+        Cookie cookie = cookieUtils.createCookie(
+                AuthConstants.REFRESH_TOKEN,
+                loginResponse.tokens().refreshToken(),
+                jwtTokenProvider.getRefreshTokenValidityInSeconds()
+        );
+        response.addCookie(cookie);
 
         return ResponseEntity.ok(ApiResponse.success(loginResponse));
     }
 
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponse<AuthTokens>> reissue() {
-        // TODO: [실습 6-1] @CookieValue 어노테이션을 사용하여 요청 쿠키에서 "refresh_token" 값을 받아오세요.
+    public ResponseEntity<ApiResponse<AuthTokens>> reissue(
+            @CookieValue(value = AuthConstants.REFRESH_TOKEN, required = false) String refreshToken,
+            HttpServletResponse response) {
+        
         // 추출한 토큰을 authService.reissue() 에 넘겨주세요.
         // 재발급 받은 새로운 RefreshToken 역시 HttpOnly 쿠키로 응답에 세팅해야 합니다.
+        if (refreshToken == null) {
+            // 커스텀 인증 에러 처리 (로그인 만료)
+            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        AuthTokens tokens = authService.reissue(refreshToken);
         
-        return null; // TODO: 정상 응답 객체로 교체
+        // 새로 발급된 리프레시 토큰으로 쿠키 덮어쓰기 (RTR 방식)
+        Cookie cookie = cookieUtils.createCookie(
+                AuthConstants.REFRESH_TOKEN,
+                tokens.refreshToken(),
+                jwtTokenProvider.getRefreshTokenValidityInSeconds()
+        );
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok(ApiResponse.success(tokens));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest request) {
-        // Hint: 생성된 세션을 무효화합니다 (session.invalidate()).
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
+    public ResponseEntity<ApiResponse<String>> logout(
+            @CookieValue(value = AuthConstants.REFRESH_TOKEN, required = false) String refreshToken,
+            HttpServletResponse response) {
+        
+        // 1. DB에서 Refresh Token 삭제
+        if (refreshToken != null) {
+            authService.logout(refreshToken);
         }
 
-        return ResponseEntity.ok(ApiResponse.success("로그아웃 성공"));
+        // 2. 브라우저의 Refresh Token 쿠키 무효화 
+        Cookie cookie = cookieUtils.deleteCookie(AuthConstants.REFRESH_TOKEN);
+        response.addCookie(cookie);
+
+        return ResponseEntity.ok(ApiResponse.success(AuthConstants.LOGOUT_SUCCESS_MESSAGE));
     }
 }

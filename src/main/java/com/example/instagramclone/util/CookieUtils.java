@@ -20,6 +20,10 @@ public class CookieUtils {
         cookie.setPath(AuthConstants.COOKIE_PATH_ROOT);
         cookie.setMaxAge(maxAge);
         cookie.setHttpOnly(true);
+        //cookie.setSecure(true);
+        // [꿀팁] 
+        // 개발 환경(HTTP)에서는 Secure 옵션을 켜면 브라우저가 쿠키를 저장/전송하지 않을 수 있습니다.
+        // (단, 크롬 등 일부 브라우저는 localhost 예외 처리를 해주지만 안전하게 HTTPS 배포 시점에 켭니다.)
         return cookie;
     }
 

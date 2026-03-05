@@ -2,6 +2,7 @@ package com.example.instagramclone.domain.member.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -15,9 +16,19 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // TODO: [실습 5-1] memberId 와 token 필드를 선언하고, 생성자(@Builder)를 만들어주세요.
+    @Column(nullable = false, unique = true)
+    private Long memberId;
+
+    @Column(nullable = false, length = 512)
+    private String token;
+
+    @Builder
+    public RefreshToken(Long memberId, String token) {
+        this.memberId = memberId;
+        this.token = token;
+    }
 
     public void updateToken(String newToken) {
-        // TODO: [실습 6] 기존 토큰 값을 새로운 토큰 값으로 교체하는 메서드를 완성하세요.
+        this.token = newToken;
     }
 }

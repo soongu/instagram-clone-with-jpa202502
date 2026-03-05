@@ -70,4 +70,9 @@ public class MemberService {
         return memberRepository.findById(memberId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
     }
+
+    // [Step 5 최적화용] DB I/O 없이 연관관계 설정용 가짜 객체(Proxy)만 필요할 때 호출
+    public Member getReferenceById(Long memberId) {
+        return memberRepository.getReferenceById(memberId);
+    }
 }

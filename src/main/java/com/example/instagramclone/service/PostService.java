@@ -13,8 +13,6 @@ import com.example.instagramclone.repository.PostRepository;
 import com.example.instagramclone.repository.PostImageRepository;
 import com.example.instagramclone.util.FileStore;
 import com.example.instagramclone.domain.member.entity.Member;
-import com.example.instagramclone.exception.MemberErrorCode;
-import com.example.instagramclone.exception.MemberException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,28 +33,29 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final PostImageRepository postImageRepository;
-    private final MemberService memberService;
+    private final MemberService memberService; 
     private final FileStore fileStore;
 
     @Transactional
-    public Long create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException { // FileStore.storeFile throws IOException
-        // 1. 요청 인가(Authorization): 세션에서 추출한 loginMemberId가 없는 경우 예외 발생시켜 접근 제한.
-        if (loginMemberId == null) {
-            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS);
-        }
+    public Long create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException { 
         
-        // 2. 세션의 회원 ID로 MemberService를 통해 Member 엔티티 획득.
-        // 타 도메인의 Repository를 직접 참조하는 대신, Service 계층을 거쳐 의존성을 낮춤 (MSA 철학)
-        // TODO: [실습 3] DB에 쿼리를 날리는 memberService.getMemberById() (내부적으로 findById) 대신,
-        // JPA의 프록시를 활용하는 로직으로 변경하여 불필요한 SELECT 쿼리를 없애보세요. (getReferenceById 활용)
-        Member writer = memberService.getMemberById(loginMemberId);
+        // Step 5: [실무 핵심] "토큰 안에 다 있는데 굳이 DB 가야 해? (getReferenceById)"
+        // Q. memberService.getMemberById(loginMemberId) 를 쓰면 안 되나요?
+        // A. 안 될 건 없지만, Post(자식)를 저장할 때 FK인 member_id 번호만 있으면 되는데,
+        //    굳이 DB에 진짜 SELECT 쿼리를 날려서 Member(부모) 전체를 다 캐올 필요가 전혀 없습니다! (낭비)
+        // 
+        // 고수의 방법: Hibernate의 프록시(가짜 객체) 기술을 활용하는 getReferenceById()를 씁니다.
+        // 이 녀석은 DB를 전혀 찌르지 않고, 속이 텅 빈 가짜 객체(Proxy)에 ID 값 껍데기만 씌워서 가져옵니다.
+        // 덕분에 불필요한 SELECT 쿼리 1회를 우아하게 없앨 수 있는 실무 최적화 기법입니다.
+        // 추가 포인트: 다른 도메인의 Repository를 직접 주입받는 것은 MSA 철학에 어긋나므로, memberService를 통해 프록시를 받아옵니다.
+        Member writer = memberService.getReferenceById(loginMemberId);
         
         Post post = Post.builder()
                 .content(request.content())
                 .writer(writer)
                 .build();
                 
-        // [과제 2 예시답안] 단방향 연관관계이므로 필드를 통한 Cascade를 쓸 수 없습니다.
+        // 단방향 연관관계이므로 필드를 통한 Cascade를 쓸 수 없습니다.
         // 먼저 부모 엔티티(Post)를 저장합니다.
         Post savedPost = postRepository.save(post);
 
@@ -77,16 +76,15 @@ public class PostService {
                     })
                     .toList();
             
-            // [과제 2 예시답안] 자식 엔티티들을 명시적으로 Batch Save 합니다.
+            // 자식 엔티티들을 명시적으로 Batch Save 합니다.
             postImageRepository.saveAll(postImages);
         }
         
         return savedPost.getId();
     }
 
-    // TODO: [Day 7] 반환 타입을 FeedResponse<PostResponse> 로 변경하고, 인스타그램식 무한 스크롤(Paging) 스펙에 맞추어 페이징 처리하세요.
     public FeedResponse<PostResponse> getFeed(Pageable pageable) {
-        // [과제 2 예시답안] 1. 단방향 조회 전략: 부모(Post)만 페이징 조회합니다. (안전한 페이징)
+        // 1. 단방향 조회 전략: 부모(Post)만 페이징 조회합니다. (안전한 페이징)
         Slice<Post> postSlice = postRepository.findAllWithImages(pageable);
         List<Post> posts = postSlice.getContent();
         

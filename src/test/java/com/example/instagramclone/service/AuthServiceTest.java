@@ -6,6 +6,8 @@ import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.exception.MemberException;
 import com.example.instagramclone.exception.MemberErrorCode;
 import com.example.instagramclone.repository.MemberRepository;
+import com.example.instagramclone.domain.member.entity.RefreshToken;
+import com.example.instagramclone.repository.RefreshTokenRepository;
 import com.example.instagramclone.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -30,6 +33,9 @@ class AuthServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
+    
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -101,6 +107,7 @@ class AuthServiceTest {
         given(passwordEncoder.matches(eq(request.password()), eq(mockMember.getPassword())))
                 .willReturn(true);
 
+        given(refreshTokenRepository.findByMemberId(eq(1L))).willReturn(Optional.empty());
         given(jwtTokenProvider.createAccessToken(eq(1L), anyString())).willReturn("mock.access.token");
         given(jwtTokenProvider.createRefreshToken(eq(1L))).willReturn("mock.refresh.token");
 
@@ -117,5 +124,68 @@ class AuthServiceTest {
         // 행동 검증 (실무 필수)
         then(jwtTokenProvider).should().createAccessToken(eq(1L), anyString());
         then(jwtTokenProvider).should().createRefreshToken(eq(1L));
+        then(refreshTokenRepository).should().save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("토큰 재발급 성공 - RTR 정책에 따라 DB 토큰 업데이트")
+    void reissue_success() {
+        // given
+        String oldRefreshToken = "old.refresh.token";
+        String newRefreshToken = "new.refresh.token";
+        
+        RefreshToken mockRefreshTokenEntity = RefreshToken.builder()
+                .memberId(1L)
+                .token(oldRefreshToken)
+                .build();
+
+        Member mockMember = Member.builder().username("test_user").build();
+        ReflectionTestUtils.setField(mockMember, "id", 1L);
+
+        given(jwtTokenProvider.validateToken(oldRefreshToken)).willReturn(true);
+        given(refreshTokenRepository.findByToken(oldRefreshToken)).willReturn(Optional.of(mockRefreshTokenEntity));
+        given(memberRepository.findById(1L)).willReturn(Optional.of(mockMember));
+        given(jwtTokenProvider.createAccessToken(eq(1L), anyString())).willReturn("new.access.token");
+        given(jwtTokenProvider.createRefreshToken(eq(1L))).willReturn(newRefreshToken);
+
+        // when
+        authService.reissue(oldRefreshToken);
+
+        // then
+        assertThat(mockRefreshTokenEntity.getToken()).isEqualTo(newRefreshToken); // DB 엔티티가 새 토큰으로 업데이트 되었는지 확인
+        then(jwtTokenProvider).should().createAccessToken(eq(1L), anyString());
+        then(jwtTokenProvider).should().createRefreshToken(eq(1L));
+    }
+
+    @Test
+    @DisplayName("토큰 재발급 실패 - 유효하지 않은 토큰")
+    void reissue_fail_invalid_token() {
+        // given
+        String invalidToken = "invalid.token";
+        given(jwtTokenProvider.validateToken(invalidToken)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> authService.reissue(invalidToken))
+                .isInstanceOf(MemberException.class)
+                .hasMessage(MemberErrorCode.UNAUTHORIZED_ACCESS.getMessage());
+    }
+
+    @Test
+    @DisplayName("로그아웃 성공 - DB에서 리프레시 토큰 삭제")
+    void logout_success() {
+        // given
+        String refreshToken = "mock.refresh.token";
+        RefreshToken mockRefreshTokenEntity = RefreshToken.builder()
+                .memberId(1L)
+                .token(refreshToken)
+                .build();
+        
+        given(refreshTokenRepository.findByToken(refreshToken)).willReturn(Optional.of(mockRefreshTokenEntity));
+
+        // when
+        authService.logout(refreshToken);
+
+        // then
+        then(refreshTokenRepository).should().delete(mockRefreshTokenEntity);
     }
 }
