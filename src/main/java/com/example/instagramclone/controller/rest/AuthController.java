@@ -6,11 +6,12 @@ import com.example.instagramclone.domain.member.dto.request.LoginRequest;
 import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
 import com.example.instagramclone.domain.member.dto.response.DuplicateCheckResponse;
 import com.example.instagramclone.domain.member.dto.response.LoginResponse;
+import com.example.instagramclone.domain.member.dto.response.AuthTokens;
 import com.example.instagramclone.domain.member.dto.response.SignUpResponse;
-import com.example.instagramclone.domain.member.entity.Member;
 import com.example.instagramclone.service.AuthService;
 import com.example.instagramclone.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -54,11 +55,24 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // [실습 5] 진짜 클라이언트처럼, AuthController 통합 테스트(Integration Test) 시연을 위한 AuthController 완성
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest loginRequest) {
-        LoginResponse response = authService.login(loginRequest);
-        return ResponseEntity.ok(ApiResponse.success(response));
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest loginRequest, HttpServletResponse response) {
+        LoginResponse loginResponse = authService.login(loginRequest);
+
+        // TODO: [실습 5-4] AuthService에서 반환받은 loginResponse 안에 있는 RefreshToken을
+        // HttpOnly 옵션과 Secure 옵션을 설정한 쿠키(Cookie)로 생성하여 HttpServletResponse 객체에 추가하세요.
+        // 쿠키 이름은 "refresh_token" 으로 설정합니다.
+
+        return ResponseEntity.ok(ApiResponse.success(loginResponse));
+    }
+
+    @PostMapping("/reissue")
+    public ResponseEntity<ApiResponse<AuthTokens>> reissue() {
+        // TODO: [실습 6-1] @CookieValue 어노테이션을 사용하여 요청 쿠키에서 "refresh_token" 값을 받아오세요.
+        // 추출한 토큰을 authService.reissue() 에 넘겨주세요.
+        // 재발급 받은 새로운 RefreshToken 역시 HttpOnly 쿠키로 응답에 세팅해야 합니다.
+        
+        return null; // TODO: 정상 응답 객체로 교체
     }
 
     @PostMapping("/logout")

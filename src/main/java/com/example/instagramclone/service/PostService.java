@@ -47,6 +47,8 @@ public class PostService {
         
         // 2. 세션의 회원 ID로 MemberService를 통해 Member 엔티티 획득.
         // 타 도메인의 Repository를 직접 참조하는 대신, Service 계층을 거쳐 의존성을 낮춤 (MSA 철학)
+        // TODO: [실습 3] DB에 쿼리를 날리는 memberService.getMemberById() (내부적으로 findById) 대신,
+        // JPA의 프록시를 활용하는 로직으로 변경하여 불필요한 SELECT 쿼리를 없애보세요. (getReferenceById 활용)
         Member writer = memberService.getMemberById(loginMemberId);
         
         Post post = Post.builder()

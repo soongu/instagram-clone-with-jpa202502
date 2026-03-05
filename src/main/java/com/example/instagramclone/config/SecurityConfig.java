@@ -13,8 +13,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // CSRF 비활성화, 폼 로그인 비활성화, 세션 생성 정책(Stateless) 설정 등
-        // Day 8 강의에서 상세 내용을 추가할 예정입니다.
         
         http
             .csrf(csrf -> csrf.disable()) // CSRF 보호 비활성화 (JWT를 사용하므로 불필요)
@@ -26,6 +24,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .anyRequest().permitAll() // 임시로 모든 요청 허용 (실습에서 변경 예정)
             );
+
+        // TODO: [실습 4] 우리가 만든 JwtAuthenticationFilter를 Spring Security 필터 체인에 등록하세요.
+        // 위치: UsernamePasswordAuthenticationFilter.class 이전에 동작하도록 설정해야 합니다.
 
         return http.build();
     }

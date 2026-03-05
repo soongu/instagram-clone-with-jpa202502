@@ -53,10 +53,24 @@ public class AuthService {
         // 토큰 발급
         String accessToken = jwtTokenProvider.createAccessToken(member.getId(), member.getRole().name());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getId());
-        member.updateRefreshToken(refreshToken);
+        
+        // TODO: [실습 5-3] 발급한 RefreshToken을 DB에 저장하세요. (RefreshTokenRepository 활용)
+        // 기존에 이미 발급받은 토큰이 있다면 업데이트하고, 없다면 새로 저장해야 합니다.
 
         // [Refactor] 프론트엔드 요구사항에 맞춘 풍부한 응답 DTO 반환 (정적 팩토리 메서드 활용)
         AuthTokens tokens = new AuthTokens(accessToken, refreshToken);
         return LoginResponse.of(tokens, member);
+    }
+
+    @Transactional
+    public AuthTokens reissue(String refreshToken) {
+        // TODO: [실습 6-2] 토큰 재발급 로직을 구현하세요.
+        // 1. 전달받은 refreshToken 의 유효성을 검사합니다. (jwtTokenProvider 활용)
+        // 2. RefreshTokenRepository 에서 해당 토큰으로 DB에 저장된 토큰 엔티티를 찾습니다.
+        // 3. 토큰이 유효하다면, 멤버 정보를 바탕으로 새로운 AccessToken 과 RefreshToken 을 생성합니다.
+        // 4. DB의 RefreshToken 엔티티 값을 새로운 토큰으로 업데이트합니다.
+        // 5. 발급된 두 종류의 토큰을 AuthTokens 객체에 담아 반환합니다.
+
+        return null;
     }
 }

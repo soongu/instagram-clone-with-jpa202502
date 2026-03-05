@@ -34,8 +34,12 @@ public class PostController {
     public ResponseEntity<ApiResponse<Void>> createPost(
             @RequestPart("feed") PostCreateRequest request,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            // TODO: [실습 4] SessionUser 파라미터를 지우고, @AuthenticationPrincipal 을 사용하여
+            // 인증 필터가 넣어준 로그인 멤버의 ID(Long)를 바로 주입받도록 수정하세요.
+            // (심화 과제: 이를 어노테이션 자체를 추상화하는 @LoginUser 커스텀 어노테이션으로 교체해 보세요.)
             @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) throws IOException { 
             
+        // TODO: [실습 4] 필터가 미인증 접근을 막아주므로, 이 null 체크 방어 로직은 삭제해도 됩니다.
         if (sessionUser == null) {
             throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
         }
@@ -52,14 +56,15 @@ public class PostController {
     public ResponseEntity<ApiResponse<FeedResponse<PostResponse>>> getFeed(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "5") int size,
+            // TODO: [실습 4] 윗 줄의 createPost 와 동일하게 @AuthenticationPrincipal 로 교체하세요.
             @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) {
         
-        // 1. 요청 인가(Authorization): 세션에서 추출한 sessionUser가 없는 경우 예외 발생시켜 접근 제한.
+        // TODO: [실습 4] 이 부분도 마찬가지로 필터 도입 후 불필요하므로 삭제하세요.
         if (sessionUser == null) {
             throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
         }
 
-        // 2. 파라미터 검증 및 Pageable 생성 (관심사 분리)
+        // 파라미터 검증 및 Pageable 생성 (관심사 분리)
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
         
         FeedResponse<PostResponse> response = postService.getFeed(pageable);
