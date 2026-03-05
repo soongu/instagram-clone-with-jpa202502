@@ -29,7 +29,24 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // 세션을 사용하지 않음 (Stateless)
             )
             .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll() 
+                // Step 3: "우리 서비스의 API 출입 통제소 (authorizeHttpRequests)"
+                // Q. 왜 permitAll()을 쓰나요?
+                // A. 인스타그램은 로그인하지 않아도 회원가입과 로그인은 할 수 있어야 합니다. 
+                //    이메일 중복 검사 등 인증이 필요 없는 최소한의 API만 문을 열어둡니다.
+                .requestMatchers(
+                    "/api/auth/login", 
+                    "/api/auth/signup", 
+                    "/api/auth/check-duplicate"
+                ).permitAll()
+                
+                // [실무 꿀팁] 와일드카드("/api/auth/**") 주의보!
+                // 앞선 API들 외에 /api/auth/logout 도 같은 폴더(?)에 있지만, 
+                // 로그아웃은 반드시 "로그인된(인증된)" 사람만 할 수 있어야 합니다. 
+                // 따라서 로그아웃이나 다른 API들은 아래의 anyRequest().authenticated() 에 걸려서 보안을 유지하게 됩니다.
+
+                // 그 외의 모든 API (게시글 작성, 피드 조회, 댓글 달기 등)는 
+                // "반드시 인증된(로그인된)" 사용자만 접근할 수 있도록 철저하게 막아버립니다.
+                .anyRequest().authenticated() 
             )
             // Step 2: "SecurityContext 에 신분증 걸어두기" (Filter 등록)
             // 우리가 직접 만든 JwtAuthenticationFilter 객체를 생성하여 필터 체인에 끼워 넣습니다.

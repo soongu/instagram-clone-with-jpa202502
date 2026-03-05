@@ -39,7 +39,7 @@ public class PostService {
     private final FileStore fileStore;
 
     @Transactional
-    public void create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException { // FileStore.storeFile throws IOException
+    public Long create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException { // FileStore.storeFile throws IOException
         // 1. 요청 인가(Authorization): 세션에서 추출한 loginMemberId가 없는 경우 예외 발생시켜 접근 제한.
         if (loginMemberId == null) {
             throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS);
@@ -80,6 +80,8 @@ public class PostService {
             // [과제 2 예시답안] 자식 엔티티들을 명시적으로 Batch Save 합니다.
             postImageRepository.saveAll(postImages);
         }
+        
+        return savedPost.getId();
     }
 
     // TODO: [Day 7] 반환 타입을 FeedResponse<PostResponse> 로 변경하고, 인스타그램식 무한 스크롤(Paging) 스펙에 맞추어 페이징 처리하세요.

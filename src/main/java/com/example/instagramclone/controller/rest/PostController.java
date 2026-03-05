@@ -2,7 +2,7 @@ package com.example.instagramclone.controller.rest;
 
 import org.springframework.data.domain.Pageable;
 
-import com.example.instagramclone.domain.common.dto.FeedResponse;
+import com.example.instagramclone.domain.post.dto.response.PostCreateResponse;
 import com.example.instagramclone.domain.post.dto.response.PostResponse;
 
 import com.example.instagramclone.domain.post.dto.request.PostCreateRequest;
@@ -10,12 +10,10 @@ import com.example.instagramclone.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.example.instagramclone.constant.AuthConstants;
 import com.example.instagramclone.domain.common.dto.ApiResponse;
-import com.example.instagramclone.domain.member.dto.response.SessionUser;
-import com.example.instagramclone.exception.MemberErrorCode;
-import com.example.instagramclone.exception.MemberException;
+import com.example.instagramclone.domain.common.dto.FeedResponse;
+
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -31,38 +29,31 @@ public class PostController {
     private final PostService postService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Void>> createPost(
+    public ResponseEntity<ApiResponse<PostCreateResponse>> createPost(
             @RequestPart("feed") PostCreateRequest request,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
-            // TODO: [실습 4] SessionUser 파라미터를 지우고, @AuthenticationPrincipal 을 사용하여
-            // 인증 필터가 넣어준 로그인 멤버의 ID(Long)를 바로 주입받도록 수정하세요.
-            // (심화 과제: 이를 어노테이션 자체를 추상화하는 @LoginUser 커스텀 어노테이션으로 교체해 보세요.)
-            @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) throws IOException { 
+            // Step 4: "@AuthenticationPrincipal 로 우아하게 유저 정보 받기"
+            // Q. 방금까지 있던 @SessionAttribute 랑 지저분한 null 체크 로직은 어디 갔나요?
+            // A. 우리가 방금 만든 '보안 요원(JwtAuthenticationFilter)'이 정상적인 토큰을 확인하면,
+            //    SecurityContextHolder(게시판)에 `memberId`를 적어두고 통과시킵니다.
+            //    스프링 시큐리티의 @AuthenticationPrincipal 은 그 게시판을 확인해서 
+            //    여기에 `memberId`를 "주사기처럼 쏙!" 꽂아주는 마법의 어노테이션입니다!
+            //    덕분에 컨트롤러는 "토큰이 정상인가?" 에 대한 고민을 1도 안 해도 됩니다. 완전 깔끔하죠?
+            @AuthenticationPrincipal Long memberId) throws IOException { 
             
-        // TODO: [실습 4] 필터가 미인증 접근을 막아주므로, 이 null 체크 방어 로직은 삭제해도 됩니다.
-        if (sessionUser == null) {
-            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
-        }
-
-        postService.create(request, images, sessionUser.id());
+        // 필터가 앞에서 다 막아주기 때문에, 
+        Long postId = postService.create(request, images, memberId);
         
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(null));
+                .body(ApiResponse.success(PostCreateResponse.from(postId)));
     }
 
-    // TODO: [Day 7] JSON 무한 순환 참조 에러 체험을 위한 피드 조회 API 작성
-    // 처음엔 List<Post> 엔티티 직접 반환으로 무한 순환 에러 체험 -> 이후 FeedResponse<PostResponse> DTO 및 Pageable 적용으로 변경
     @GetMapping
     public ResponseEntity<ApiResponse<FeedResponse<PostResponse>>> getFeed(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "5") int size,
-            // TODO: [실습 4] 윗 줄의 createPost 와 동일하게 @AuthenticationPrincipal 로 교체하세요.
-            @SessionAttribute(name = AuthConstants.SESSION_KEY, required = false) SessionUser sessionUser) {
-        
-        // TODO: [실습 4] 이 부분도 마찬가지로 필터 도입 후 불필요하므로 삭제하세요.
-        if (sessionUser == null) {
-            throw new MemberException(MemberErrorCode.UNAUTHORIZED_ACCESS); // 401 Unauthorized
-        }
+            // Step 4 복습: 피드 조회도 마찬가지로 @AuthenticationPrincipal 을 사용합니다.
+            @AuthenticationPrincipal Long memberId) {
 
         // 파라미터 검증 및 Pageable 생성 (관심사 분리)
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
