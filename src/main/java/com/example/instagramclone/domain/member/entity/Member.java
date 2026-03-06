@@ -43,11 +43,6 @@ public class Member extends BaseEntity {
     @Column(nullable = false)
     private MemberRole role;
 
-    // RefreshToken은 로그인 성공 후에 발급되므로, 회원가입 시점에는 없다.
-    // 따라서 생성자에는 포함하지 않고 별도로 업데이트 한다.
-    @Column(length = 512)
-    private String refreshToken;
-
     @Builder
     private Member(String username, String password, String email, String phone, String name, String profileImageUrl) {
         this.username = username;
@@ -65,9 +60,5 @@ public class Member extends BaseEntity {
     public void updateProfile(String name, String profileImageUrl) {
         this.name = name;
         this.profileImageUrl = profileImageUrl;
-    }
-
-    public void updateRefreshToken(String refreshToken) {
-        this.refreshToken = refreshToken;
     }
 }

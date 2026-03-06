@@ -1,22 +1,33 @@
 package com.example.instagramclone.config;
 
+import com.example.instagramclone.security.resolver.LoginUserArgumentResolver;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.List;
+
 @Configuration
+@RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    // TODO: 1. application.yml의 file.upload.location 값을 주입받으세요 (@Value 활용)
+    private final LoginUserArgumentResolver loginUserArgumentResolver;
+
     @Value("${file.upload.location}")
     private String fileDir;
 
-    // TODO: 2. 정적 리소스 경로 매핑을 추가하세요 (업로드된 이미지 접근용)
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
         // Hint: "/img/**" URL 요청을 물리적 디렉토리 "file:..." 위치로 연결합니다.
         registry.addResourceHandler("/img/**").addResourceLocations("file:" + fileDir);
+    }
+
+    @Override
+    public void addArgumentResolvers(@NonNull List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(loginUserArgumentResolver);
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import com.example.instagramclone.constant.AuthConstants;
+import com.example.instagramclone.security.dto.LoginUserInfoDto;
 
 /**
  * [모든 요청의 첫 번째 검문소, JwtAuthenticationFilter]
@@ -55,9 +56,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String role = jwtTokenProvider.getRole(token);
             
             // 토큰에서 추출한 정보로 Authentication(인증 도장) 객체 생성
-            // Principal(주체)로 memberId를 넣고, Credentials(비밀번호)는 null 처리, Authorities(권한) 부여
+            // Principal(주체)로 memberId를 직접 넣지 않고, 확장성을 위해 LoginUserInfoDto DTO를 넣습니다.
+            // Credentials(비밀번호)는 null 처리, Authorities(권한) 부여
             Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    memberId, 
+                    LoginUserInfoDto.builder().id(memberId).build(), 
                     null, 
                     Collections.singletonList(new SimpleGrantedAuthority(StringUtils.hasText(role) ? role : "ROLE_USER")) // 토큰에서 추출한 권한 사용, 없으면 기본값
             );
