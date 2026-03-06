@@ -1,5 +1,9 @@
 package com.example.instagramclone.security.jwt;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,30 +49,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 1. Request Header 에서 클라이언트가 보낸 JWT 토큰을 가로채기
         String token = resolveToken(request);
 
-        // 2. 가로챈 토큰이 존재하고(null이 아니고), 위변조 및 만료되지 않은 "유효한" 토큰인지 검사
-        // 실무 포인트: StringUtils.hasText()는 null, 빈 문자열(""), 공백("   ")을 한 번에 걸러주는 스프링 필수 유틸입니다.
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            
-            // 3. 유효한 토큰이면 Spring Security Context 에 인증 정보 심기
-            // 실무 포인트: 매 API 요청마다 DB나 세션을 조회하지 않습니다. (Stateless)
-            // 토큰 자체에 들어있는 Payload(Claims) 정보만으로 주체(Principal)를 확인합니다.
-            Long memberId = jwtTokenProvider.getMemberId(token);
-            String role = jwtTokenProvider.getRole(token);
-            
-            // 토큰에서 추출한 정보로 Authentication(인증 도장) 객체 생성
-            // Principal(주체)로 memberId를 직접 넣지 않고, 확장성을 위해 LoginUserInfoDto DTO를 넣습니다.
-            // Credentials(비밀번호)는 null 처리, Authorities(권한) 부여
-            Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    LoginUserInfoDto.builder().id(memberId).build(), 
-                    null, 
-                    Collections.singletonList(new SimpleGrantedAuthority(StringUtils.hasText(role) ? role : "ROLE_USER")) // 토큰에서 추출한 권한 사용, 없으면 기본값
-            );
-            
-            // SecurityContextHolder의 Context(스프링 시큐리티의 '임시 보안 명부')에 생성한 Authentication 객체 저장 
-            // 이렇게 등록해두면 이후의 컨트롤러에서 @AuthenticationPrincipal 로 memberId를 바로 꺼내 쓸 수 있습니다.
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            
-            log.debug("Security Context에 '{}' 인증 정보를 저장했습니다. (uri: {})", memberId, request.getRequestURI());
+        try {
+            // 2. 가로챈 토큰이 존재하고(null이 아니고), 위변조 및 만료되지 않은 "유효한" 토큰인지 검사
+            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+                
+                // 3. 유효한 토큰이면 Spring Security Context 에 인증 정보 심기
+                Long memberId = jwtTokenProvider.getMemberId(token);
+                String role = jwtTokenProvider.getRole(token);
+                
+                Authentication authentication = new UsernamePasswordAuthenticationToken(
+                        LoginUserInfoDto.builder().id(memberId).build(), 
+                        null, 
+                        Collections.singletonList(new SimpleGrantedAuthority(StringUtils.hasText(role) ? role : "ROLE_USER")) 
+                );
+                
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Security Context에 '{}' 인증 정보를 저장했습니다.", memberId);
+            }
+        } catch (ExpiredJwtException e) {
+            log.warn("만료된 JWT 토큰입니다: {}", e.getMessage());
+            request.setAttribute("exception", e);
+        } catch (SecurityException | MalformedJwtException | SignatureException e) {
+            log.warn("잘못된 JWT 서명입니다: {}", e.getMessage());
+            request.setAttribute("exception", e);
+        } catch (UnsupportedJwtException e) {
+            log.warn("지원되지 않는 JWT 토큰입니다: {}", e.getMessage());
+            request.setAttribute("exception", e);
+        } catch (Exception e) {
+            log.error("JWT 검증 중 알 수 없는 예외가 발생했습니다: {}", e.getMessage());
+            request.setAttribute("exception", e);
         }
 
         // 4. 다음 검문소(필터)로 요청 넘기기

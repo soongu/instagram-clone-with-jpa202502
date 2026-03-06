@@ -1,12 +1,8 @@
 package com.example.instagramclone.security.jwt;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.UnsupportedJwtException;
-import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -124,21 +120,11 @@ public class JwtTokenProvider {
 
     /**
      * 토큰의 유효성 및 만료 기간을 검사합니다.
+     * 예외가 발생하면 호출한 곳(필터)에서 처리할 수 있도록 던집니다.
      */
     public boolean validateToken(String token) {
-        try {
-            parseClaims(token);
-            return true;
-        } catch (SecurityException | MalformedJwtException | SignatureException e) {
-            log.warn("잘못된 JWT 서명입니다. (위조 의심): {}", e.getMessage());
-        } catch (ExpiredJwtException e) {
-            log.info("만료된 JWT 토큰입니다. (권한 회수 및 재로그인 요망): {}", e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            log.warn("지원되지 않는 JWT 토큰입니다.: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            log.warn("JWT 토큰이 잘못되었습니다.: {}", e.getMessage());
-        }
-        return false;
+        parseClaims(token);
+        return true;
     }
 
     public int getRefreshTokenValidityInSeconds() {
