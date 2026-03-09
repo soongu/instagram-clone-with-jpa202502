@@ -38,9 +38,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ==================== 개발용 허용 ====================
                         .requestMatchers(
-                                "/h2-console/**",
-                                "/favicon.ico",
-                                "/error"
+                                "/", "/assets/**", "/img/**", "/error", "/favicon.ico",
+                                "/h2-console/**"
                         ).permitAll()
 
                         // ==================== 인증 없이 허용 ====================
@@ -54,7 +53,9 @@ public class SecurityConfig {
                                 "/api/auth/signup",
                                 "/api/auth/reissue"          // Refresh Token 재발급
                         ).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/check-duplicate").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/auth/check-duplicate"
+                        ).permitAll()
 
                         // [실무 꿀팁] 와일드카드("/api/auth/**") 주의보!
                         // 앞선 API들 외에 /api/auth/logout 도 같은 폴더(?)에 있지만,
