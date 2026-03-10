@@ -10,6 +10,7 @@ import com.example.instagramclone.domain.post.domain.Post;
 import com.example.instagramclone.domain.post.domain.PostImage;
 import com.example.instagramclone.domain.post.domain.PostImageRepository;
 import com.example.instagramclone.domain.post.domain.PostRepository;
+import com.example.instagramclone.domain.post.infrastructure.PostMapper;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
@@ -36,6 +37,7 @@ public class PostService {
     private final PostImageRepository postImageRepository;
     private final MemberService memberService;
     private final FileStore fileStore;
+    private final PostMapper postMapper;
 
     @Transactional
     public Long create(PostCreateRequest request, List<MultipartFile> images, Long loginMemberId) throws IOException {
@@ -108,7 +110,7 @@ public class PostService {
                             .stream()
                             .sorted(Comparator.comparing(PostImage::getImgOrder))
                             .toList();
-                    return PostResponse.of(post, postImages);
+                    return postMapper.toResponse(post, postImages);
                 })
                 .toList();
 

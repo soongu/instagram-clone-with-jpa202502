@@ -18,18 +18,5 @@ public record PostResponse(
         LikeStatusResponse likeStatus,
         int commentCount
 ) {
-    public static PostResponse of(Post post, List<PostImage> images) {
-        return new PostResponse(
-                post.getId(),
-                post.getContent(),
-                post.getWriter().getUsername(),
-                post.getWriter().getProfileImageUrl(),
-                images.stream()
-                        .map(PostImageResponse::from)
-                        .toList(),
-                post.getCreatedAt(),
-                LikeStatusResponse.empty(),
-                0
-        );
-    }
+    
 }
