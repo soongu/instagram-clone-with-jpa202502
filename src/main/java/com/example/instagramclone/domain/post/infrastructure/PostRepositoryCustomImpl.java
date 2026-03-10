@@ -1,6 +1,8 @@
 package com.example.instagramclone.domain.post.infrastructure;
 
 import com.example.instagramclone.domain.post.domain.Post;
+import com.example.instagramclone.domain.post.domain.QPost;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -13,46 +15,45 @@ import java.util.List;
  * PostRepositoryCustom의 QueryDSL 구현체입니다.
  * 기존 @Query JPQL 피드 조회 쿼리를 타입 세이프한 QueryDSL 코드로 대체합니다.
  *
- * [🚨 네이밍 컨벤션 필수 준수!]
- * → PostRepositoryCustom + Impl = "PostRepositoryCustomImpl"
+ * [네이밍 컨벤션 필수]
+ * Spring Data JPA는 fragment 인터페이스명 + "Impl" 접미사로 구현체를 탐색합니다.
+ * PostRepositoryCustom → PostRepositoryCustomImpl (같은 패키지에 위치해야 함)
+ *
+ * [JPQL → QueryDSL 변환]
+ * JPQL:    "SELECT p FROM Post p JOIN FETCH p.writer"
+ * QueryDSL: post.writer 를 fetchJoin() 으로 연결 → 컴파일 타임에 오타 검증 가능
  */
 @Repository
 @RequiredArgsConstructor
-@SuppressWarnings("unused") // queryFactory는 TODO 구현 후 사용됩니다
 public class PostRepositoryCustomImpl implements PostRepositoryCustom {
 
-//    private final JPAQueryFactory queryFactory;
+    private final JPAQueryFactory queryFactory;
 
-    // TODO: 1. QPost를 정적 임포트하고 findAllWithImages 메서드를 QueryDSL로 구현하세요.
-    //
-    //         [JPQL → QueryDSL 변환 가이드]
-    //
-    //         기존 JPQL:
-    //           "SELECT p FROM Post p JOIN FETCH p.writer"
-    //
-    //         QueryDSL 변환:
-    //           QPost post = QPost.post;
-    //
-    //           List<Post> posts = queryFactory
-    //               .selectFrom(post)
-    //               .join(post.writer).fetchJoin()   ← JPQL의 JOIN FETCH
-    //               .orderBy(post.id.desc())         ← 최신순 정렬
-    //               .offset(pageable.getOffset())    ← 페이지 시작 위치
-    //               .limit(pageable.getPageSize() + 1) ← +1 trick: hasNext 판별용
-    //               .fetch();
-    //
-    //         [Slice를 만드는 "+1 트릭"]
-    //         QueryDSL은 Slice를 직접 반환하지 않습니다.
-    //         대신 요청 사이즈보다 1개 더 조회하여 "다음 페이지 존재 여부"를 판단합니다.
-    //
-    //           boolean hasNext = posts.size() > pageable.getPageSize();
-    //           if (hasNext) {
-    //               posts.remove(posts.size() - 1); // 초과분 제거
-    //           }
-    //           return new SliceImpl<>(posts, pageable, hasNext);
+    /**
+     * 피드를 최신순으로 페이징 조회합니다.
+     * writer를 JOIN FETCH하여 N+1 쿼리를 방지합니다.
+     *
+     * [+1 트릭으로 Slice hasNext 판별]
+     * QueryDSL은 Slice를 직접 반환하지 않으므로, pageSize + 1 만큼 조회한 뒤
+     * 실제로 1개 초과분이 존재하면 hasNext = true로 판단하고 초과분을 제거합니다.
+     */
     @Override
     public Slice<Post> findAllWithImages(Pageable pageable) {
-        // TODO: 위 힌트를 참고하여 구현하세요.
-        return new SliceImpl<>(List.of(), pageable, false);
+        QPost post = QPost.post;
+
+        List<Post> posts = queryFactory
+                .selectFrom(post)
+                .join(post.writer).fetchJoin()
+                .orderBy(post.id.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1L)
+                .fetch();
+
+        boolean hasNext = posts.size() > pageable.getPageSize();
+        if (hasNext) {
+            posts.remove(posts.size() - 1);
+        }
+
+        return new SliceImpl<>(posts, pageable, hasNext);
     }
 }
