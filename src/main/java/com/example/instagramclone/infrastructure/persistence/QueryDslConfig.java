@@ -1,4 +1,4 @@
-package com.example.instagramclone.domain.post.infrastructure;
+package com.example.instagramclone.infrastructure.persistence;
 
 public class QueryDslConfig {
 }

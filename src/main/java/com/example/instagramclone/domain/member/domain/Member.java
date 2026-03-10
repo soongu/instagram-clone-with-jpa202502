@@ -1,6 +1,6 @@
-package com.example.instagramclone.domain.member.entity;
+package com.example.instagramclone.domain.member.domain;
 
-import com.example.instagramclone.global.common.BaseEntity;
+import com.example.instagramclone.core.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

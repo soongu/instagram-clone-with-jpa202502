@@ -1,4 +1,4 @@
-package com.example.instagramclone.domain.member.entity;
+package com.example.instagramclone.domain.member.domain;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

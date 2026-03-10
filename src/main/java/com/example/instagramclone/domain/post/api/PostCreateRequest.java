@@ -1,4 +1,4 @@
-package com.example.instagramclone.domain.post.dto.request;
+package com.example.instagramclone.domain.post.api;
 
 public record PostCreateRequest(
     String content

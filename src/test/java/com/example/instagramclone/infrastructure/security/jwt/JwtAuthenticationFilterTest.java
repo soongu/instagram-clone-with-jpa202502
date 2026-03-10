@@ -1,4 +1,4 @@
-package com.example.instagramclone.security.jwt;
+package com.example.instagramclone.infrastructure.security.jwt;
 
 import com.example.instagramclone.core.constant.AuthConstants;
 import com.example.instagramclone.infrastructure.security.jwt.JwtAuthenticationFilter;

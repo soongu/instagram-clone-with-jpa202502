@@ -1,14 +1,15 @@
 package com.example.instagramclone.service;
 
-import com.example.instagramclone.domain.member.dto.request.LoginRequest;
-import com.example.instagramclone.domain.member.dto.response.LoginResponse;
-import com.example.instagramclone.domain.member.entity.Member;
-import com.example.instagramclone.exception.MemberException;
-import com.example.instagramclone.exception.MemberErrorCode;
-import com.example.instagramclone.repository.MemberRepository;
-import com.example.instagramclone.domain.member.entity.RefreshToken;
-import com.example.instagramclone.repository.RefreshTokenRepository;
-import com.example.instagramclone.security.jwt.JwtTokenProvider;
+import com.example.instagramclone.core.exception.MemberErrorCode;
+import com.example.instagramclone.core.exception.MemberException;
+import com.example.instagramclone.domain.auth.api.LoginRequest;
+import com.example.instagramclone.domain.auth.api.LoginResponse;
+import com.example.instagramclone.domain.auth.application.AuthService;
+import com.example.instagramclone.domain.auth.domain.RefreshToken;
+import com.example.instagramclone.domain.auth.domain.RefreshTokenRepository;
+import com.example.instagramclone.domain.member.domain.Member;
+import com.example.instagramclone.domain.member.domain.MemberRepository;
+import com.example.instagramclone.infrastructure.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,7 +34,7 @@ class AuthServiceTest {
 
     @Mock
     private MemberRepository memberRepository;
-    
+
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
 
@@ -133,7 +134,7 @@ class AuthServiceTest {
         // given
         String oldRefreshToken = "old.refresh.token";
         String newRefreshToken = "new.refresh.token";
-        
+
         RefreshToken mockRefreshTokenEntity = RefreshToken.builder()
                 .memberId(1L)
                 .token(oldRefreshToken)
@@ -179,7 +180,7 @@ class AuthServiceTest {
                 .memberId(1L)
                 .token(refreshToken)
                 .build();
-        
+
         given(refreshTokenRepository.findByToken(refreshToken)).willReturn(Optional.of(mockRefreshTokenEntity));
 
         // when

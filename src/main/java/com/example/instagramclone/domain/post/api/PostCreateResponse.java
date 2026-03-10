@@ -1,4 +1,4 @@
-package com.example.instagramclone.domain.post.dto.response;
+package com.example.instagramclone.domain.post.api;
 
 public record PostCreateResponse(
         Long postId

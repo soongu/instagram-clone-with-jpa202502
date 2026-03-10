@@ -1,7 +1,7 @@
-package com.example.instagramclone.domain.post.dto.response;
+package com.example.instagramclone.domain.post.api;
 
-import com.example.instagramclone.domain.post.entity.Post;
-import com.example.instagramclone.domain.post.entity.PostImage;
+import com.example.instagramclone.domain.post.domain.Post;
+import com.example.instagramclone.domain.post.domain.PostImage;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.example.instagramclone.domain.member.api;
+package com.example.instagramclone.domain.auth.api;
 
 
 import com.example.instagramclone.core.aop.annotation.Masking;

@@ -1,9 +1,9 @@
 package com.example.instagramclone.security.jwt;
 
+import com.example.instagramclone.infrastructure.security.jwt.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Base64;

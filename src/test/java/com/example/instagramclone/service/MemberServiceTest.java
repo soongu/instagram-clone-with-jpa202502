@@ -1,11 +1,12 @@
 package com.example.instagramclone.service;
 
-import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
-import com.example.instagramclone.domain.member.entity.Member;
-import com.example.instagramclone.exception.CommonErrorCode;
-import com.example.instagramclone.exception.MemberErrorCode;
-import com.example.instagramclone.exception.MemberException;
-import com.example.instagramclone.repository.MemberRepository;
+import com.example.instagramclone.core.exception.CommonErrorCode;
+import com.example.instagramclone.core.exception.MemberErrorCode;
+import com.example.instagramclone.core.exception.MemberException;
+import com.example.instagramclone.domain.auth.api.SignUpRequest;
+import com.example.instagramclone.domain.member.application.MemberService;
+import com.example.instagramclone.domain.member.domain.Member;
+import com.example.instagramclone.domain.member.domain.MemberRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class MemberServiceTest {
 
             given(memberRepository.existsByEmail("test@test.com")).willReturn(true);
 
-            assertThatThrownBy(() -> memberService.signUp(request))
+            assertThatThrownBy(() -> memberService.createMember(request))
                     .isInstanceOf(MemberException.class)
                     .hasMessage(MemberErrorCode.DUPLICATE_EMAIL.getMessage());
 
@@ -73,7 +74,7 @@ class MemberServiceTest {
 
             given(memberRepository.existsByPhone("01012345678")).willReturn(true);
 
-            assertThatThrownBy(() -> memberService.signUp(request))
+            assertThatThrownBy(() -> memberService.createMember(request))
                     .isInstanceOf(MemberException.class)
                     .hasMessage(MemberErrorCode.DUPLICATE_PHONE.getMessage());
 
@@ -94,7 +95,7 @@ class MemberServiceTest {
             given(memberRepository.existsByEmail("test@test.com")).willReturn(false);
             given(memberRepository.existsByUsername("existing_user")).willReturn(true);
 
-            assertThatThrownBy(() -> memberService.signUp(request))
+            assertThatThrownBy(() -> memberService.createMember(request))
                     .isInstanceOf(MemberException.class)
                     .hasMessage(MemberErrorCode.DUPLICATE_USERNAME.getMessage());
 
@@ -116,7 +117,7 @@ class MemberServiceTest {
             given(memberRepository.existsByUsername("new_user")).willReturn(false);
             given(passwordEncoder.encode(request.password())).willReturn("encoded!");
 
-            memberService.signUp(request);
+            memberService.createMember(request);
 
             then(memberRepository).should().save(any(Member.class));
         }
@@ -137,7 +138,7 @@ class MemberServiceTest {
             given(memberRepository.existsByUsername("new_user")).willReturn(false);
             given(passwordEncoder.encode(request.password())).willReturn(encodedPassword);
 
-            memberService.signUp(request);
+            memberService.createMember(request);
 
             then(passwordEncoder).should().encode(eq("password!23"));
             then(memberRepository).should().save(any(Member.class));
@@ -191,7 +192,7 @@ class MemberServiceTest {
             Member mockMember = Member.builder().username("test").build();
             given(memberRepository.findById(1L)).willReturn(Optional.of(mockMember));
 
-            Member result = memberService.getMemberById(1L);
+            Member result = memberService.findById(1L);
             assertThat(result.getUsername()).isEqualTo("test");
         }
 
@@ -200,7 +201,7 @@ class MemberServiceTest {
         void getMemberById_not_found() {
             given(memberRepository.findById(999L)).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> memberService.getMemberById(999L))
+            assertThatThrownBy(() -> memberService.findById(999L))
                     .isInstanceOf(MemberException.class)
                     .hasMessage(MemberErrorCode.MEMBER_NOT_FOUND.getMessage());
         }

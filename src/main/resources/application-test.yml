@@ -1,0 +1,26 @@
+# Test 프로파일 설정 (테스트 환경 - H2 인메모리 DB)
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=MySQL
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: false
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        format_sql: false
+        show_sql: false
+    defer-datasource-initialization: true
+
+logging:
+  level:
+    root: warn
+    com:
+      example:
+        instagramclone: info

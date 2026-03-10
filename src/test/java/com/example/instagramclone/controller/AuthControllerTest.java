@@ -1,8 +1,8 @@
 package com.example.instagramclone.controller;
 
-import com.example.instagramclone.domain.member.dto.request.LoginRequest;
-import com.example.instagramclone.domain.member.dto.request.SignUpRequest;
-import com.example.instagramclone.service.MemberService;
+import com.example.instagramclone.domain.auth.api.LoginRequest;
+import com.example.instagramclone.domain.auth.api.SignUpRequest;
+import com.example.instagramclone.domain.member.application.MemberService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,14 +34,14 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        // given: 실제 비즈니스 로직(MemberService)을 통해 테스트용 유저 세팅 
+        // given: 실제 비즈니스 로직(MemberService)을 통해 테스트용 유저 세팅
         SignUpRequest signUpRequest = SignUpRequest.builder()
                 .username("integration_user")
                 .emailOrPhone("inter@test.com")
-                .password("password!23") 
+                .password("password!23")
                 .name("Integration Test")
                 .build();
-        memberService.signUp(signUpRequest);
+        memberService.createMember(signUpRequest);
     }
 
     @Test
@@ -163,7 +163,7 @@ class AuthControllerTest {
         // given
         SignUpRequest request = SignUpRequest.builder()
                 .username("usr") // 4자 미만이라 통과 실패
-                .password("1234") // 규칙 불만족이라 통과 실패 
+                .password("1234") // 규칙 불만족이라 통과 실패
                 .emailOrPhone("invalid_test.com")
                 .name("")
                 .build();
