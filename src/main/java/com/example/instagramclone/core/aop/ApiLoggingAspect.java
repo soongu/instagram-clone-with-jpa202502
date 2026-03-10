@@ -26,7 +26,7 @@ public class ApiLoggingAspect {
 
     // 도메인 기반 패키지 구조에서 모든 컨트롤러를 포착
     // ex) auth.controller.*, post.controller.*, global.controller.*
-    @Around("execution(* com.example.instagramclone..controller.*.*(..))")
+    @Around("execution(* com.example.instagramclone..api.*Controller.*(..))")
     public Object logApi(ProceedingJoinPoint joinPoint) throws Throwable {
 
         // [과제 1 예시답안] 고유한 Trace ID 생성 (너무 기니까 앞 8자리만 자릅니다)
