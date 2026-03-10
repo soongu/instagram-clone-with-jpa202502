@@ -1,8 +1,6 @@
 package com.example.instagramclone.domain.post.infrastructure;
 
 import com.example.instagramclone.domain.post.domain.Post;
-import com.example.instagramclone.domain.post.domain.PostRepositoryCustom;
-import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -16,12 +14,12 @@ import java.util.List;
  * 기존 @Query JPQL 피드 조회 쿼리를 타입 세이프한 QueryDSL 코드로 대체합니다.
  *
  * [🚨 네이밍 컨벤션 필수 준수!]
- * → PostRepository + Impl = "PostRepositoryImpl"
+ * → PostRepositoryCustom + Impl = "PostRepositoryCustomImpl"
  */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("unused") // queryFactory는 TODO 구현 후 사용됩니다
-public class PostRepositoryImpl implements PostRepositoryCustom {
+public class PostRepositoryCustomImpl implements PostRepositoryCustom {
 
 //    private final JPAQueryFactory queryFactory;
 

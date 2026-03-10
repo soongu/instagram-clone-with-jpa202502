@@ -1,5 +1,7 @@
 package com.example.instagramclone.domain.member.domain;
 
+import com.example.instagramclone.domain.member.infrastructure.MemberRepositoryCustomImpl;
+import com.example.instagramclone.infrastructure.persistence.QueryDslConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -7,9 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 
-
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,13 +22,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * MemberRepository 통합 테스트 (@DataJpaTest - H2 인메모리 DB)
  *
  * [테스트 범위]
- * - 저장(save): 이메일/전화번호 가입, role 기본값, BaseEntity 자동 설정
+ * - 저장(save): 이메일/전화번호 가입, role 기본값
  * - existsBy*: username, email, phone 존재/미존재 6가지
  * - findBy*: username, email, phone 조회 성공/실패 6가지
  * - 고유 제약조건: username, email, phone 중복 저장 시 예외
  * - 비즈니스 메서드 영속화: updateProfile() 변경 후 flush/reload 검증
+ * - searchByUsername(): QueryDSL 커스텀 쿼리 — 부분 일치, 대소문자 무시
+ *
  */
 @DataJpaTest
+@Import(QueryDslConfig.class)
 class MemberRepositoryTest {
 
     @Autowired
@@ -332,6 +338,71 @@ class MemberRepositoryTest {
 
             Member reloaded = memberRepository.findById(member.getId()).orElseThrow();
             assertThat(reloaded.getProfileImageUrl()).isNull();
+        }
+    }
+
+    // ============================================================
+    // QueryDSL 커스텀 쿼리: searchByUsername()
+    // ============================================================
+
+    @Nested
+    @DisplayName("searchByUsername() - QueryDSL 커스텀 쿼리")
+    class SearchByUsername {
+
+        @BeforeEach
+        void setUp() {
+            memberRepository.save(Member.builder()
+                    .username("john_doe").password("pw").email("john@test.com").name("John").build());
+            memberRepository.save(Member.builder()
+                    .username("jane_smith").password("pw").email("jane@test.com").name("Jane").build());
+            memberRepository.save(Member.builder()
+                    .username("bob_jones").password("pw").email("bob@test.com").name("Bob").build());
+        }
+
+        @Test
+        @DisplayName("keyword가 포함된 username을 가진 회원만 반환한다")
+        void returns_members_whose_username_contains_keyword() {
+            List<Member> result = memberRepository.searchByUsername("john");
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getUsername()).isEqualTo("john_doe");
+        }
+
+        @Test
+        @DisplayName("대소문자를 구분하지 않고 검색한다 (JOHN → john_doe 반환)")
+        void search_is_case_insensitive() {
+            List<Member> result = memberRepository.searchByUsername("JOHN");
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getUsername()).isEqualTo("john_doe");
+        }
+
+        @Test
+        @DisplayName("여러 username에 keyword가 포함되면 모두 반환한다")
+        void returns_multiple_matches() {
+            // "john_doe", "jane_smith", "bob_jones" 모두 'j' 또는 'o' 포함
+            List<Member> result = memberRepository.searchByUsername("o");
+
+            // john_doe(o 포함), bob_jones(o 포함) → 2건
+            assertThat(result).hasSize(2);
+            assertThat(result).extracting(Member::getUsername)
+                    .containsExactlyInAnyOrder("john_doe", "bob_jones");
+        }
+
+        @Test
+        @DisplayName("일치하는 username이 없으면 빈 리스트를 반환한다")
+        void returns_empty_list_when_no_match() {
+            List<Member> result = memberRepository.searchByUsername("zzz_no_match");
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("빈 keyword로 검색하면 모든 회원이 반환된다")
+        void empty_keyword_returns_all_members() {
+            List<Member> result = memberRepository.searchByUsername("");
+
+            assertThat(result).hasSize(3);
         }
     }
 }

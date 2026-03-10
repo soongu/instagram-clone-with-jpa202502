@@ -1,5 +1,6 @@
-package com.example.instagramclone.domain.post.domain;
+package com.example.instagramclone.domain.post.infrastructure;
 
+import com.example.instagramclone.domain.post.domain.Post;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
