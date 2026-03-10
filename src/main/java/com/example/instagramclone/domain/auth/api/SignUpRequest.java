@@ -1,8 +1,8 @@
-package com.example.instagramclone.domain.member.dto.request;
+package com.example.instagramclone.domain.member.api;
 
-import com.example.instagramclone.aop.annotation.Masking;
-import com.example.instagramclone.aop.annotation.MaskingType;
 
+import com.example.instagramclone.core.aop.annotation.Masking;
+import com.example.instagramclone.core.aop.annotation.MaskingType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Builder;
@@ -23,7 +23,7 @@ public record SignUpRequest(
         String username,
 
         @NotBlank(message = "비밀번호는 필수입니다.")
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$", 
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$",
                  message = "비밀번호는 8자 이상, 영문, 숫자, 특수문자를 포함해야 합니다.")
         @Masking
         String password,

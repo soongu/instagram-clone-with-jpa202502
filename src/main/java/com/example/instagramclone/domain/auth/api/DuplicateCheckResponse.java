@@ -1,4 +1,4 @@
-package com.example.instagramclone.domain.member.dto.response;
+package com.example.instagramclone.domain.member.api;
 
 import lombok.Builder;
 

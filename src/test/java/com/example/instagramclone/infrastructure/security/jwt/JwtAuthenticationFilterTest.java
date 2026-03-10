@@ -1,6 +1,8 @@
 package com.example.instagramclone.security.jwt;
 
-import com.example.instagramclone.constant.AuthConstants;
+import com.example.instagramclone.core.constant.AuthConstants;
+import com.example.instagramclone.infrastructure.security.jwt.JwtAuthenticationFilter;
+import com.example.instagramclone.infrastructure.security.jwt.JwtTokenProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.AfterEach;
@@ -15,7 +17,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import com.example.instagramclone.domain.member.entity.MemberRole;
+import com.example.instagramclone.domain.member.domain.MemberRole;
 
 import java.io.IOException;
 

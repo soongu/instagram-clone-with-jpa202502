@@ -1,7 +1,7 @@
 package com.example.instagramclone.domain.post.entity;
 
-import com.example.instagramclone.domain.common.BaseEntity;
-import com.example.instagramclone.domain.member.entity.Member;
+import com.example.instagramclone.global.common.BaseEntity;
+import com.example.instagramclone.domain.member.domain.Member;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
