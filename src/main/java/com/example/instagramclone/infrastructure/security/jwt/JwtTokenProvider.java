@@ -1,8 +1,8 @@
 package com.example.instagramclone.infrastructure.security.jwt;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,15 +21,13 @@ public class JwtTokenProvider {
     private static final String ISSUER = "InstagramCloneAuthServer"; // 표준 Claim: 발급자 (iss)
 
     @Value("${jwt.secret-key}")
-    private String secretKeyString; // 대칭키(HS256)용 프로퍼티 복구
+    private String secretKeyString; // 대칭키(HS256)용 프로퍼티
 
     @Value("${jwt.access-token-validity-time}")
     private long accessTokenValidityInMilliseconds;
 
     @Value("${jwt.refresh-token-validity-time}")
     private long refreshTokenValidityInMilliseconds;
-
-
 
     private SecretKey key;
 
@@ -70,25 +68,22 @@ public class JwtTokenProvider {
      * 실제 JWT 토큰 생성을 담당하는 내부 헬퍼 메서드
      */
     private String buildToken(Long memberId, String role, long validityTimeInMs) {
-        // 1. 토큰에 담을 정보(Payload - claims) 세팅
-        Claims claims = Jwts.claims().setSubject(String.valueOf(memberId)); // PK를 Subject로 지정
-        if (role != null) {
-            claims.put("role", role); // 부가 정보(Custom Claim) 추가
-        }
-
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityTimeInMs);
 
-        // 2. 토큰 생성 (Header, Payload, Signature 조합)
-        // 모놀리식: 동일한 Secret Key를 사용하여 서명(HS256)
-        return Jwts.builder()
-                .setClaims(claims)           // 정보 저장
-                .setIssuer(ISSUER)           // 표준 Claim: 토큰 발급자 명시
-                .setIssuedAt(now)            // 표준 Claim: 토큰 발행 시간 (iat)
-                .setExpiration(validity) // 표준 Claim: 설정된 만료 시간 (exp)
-                .setId(UUID.randomUUID().toString()) // 표준 Claim: 토큰 ID (jti)
-                .signWith(key, SignatureAlgorithm.HS256)  // HS256과 대칭키(Secret Key)로 서명
-                .compact();
+        JwtBuilder builder = Jwts.builder()
+                .subject(String.valueOf(memberId)) // PK를 Subject로 지정
+                .issuer(ISSUER)                    // 표준 Claim: 토큰 발급자 명시
+                .issuedAt(now)                     // 표준 Claim: 토큰 발행 시간 (iat)
+                .expiration(validity)              // 표준 Claim: 설정된 만료 시간 (exp)
+                .id(UUID.randomUUID().toString())  // 표준 Claim: 토큰 고유 ID (jti)
+                .signWith(key);                    // SecretKey → HS256 자동 적용 (모놀리식 대칭키)
+
+        if (role != null) {
+            builder.claim("role", role); // 부가 정보(Custom Claim) 추가
+        }
+
+        return builder.compact();
     }
 
     /**
@@ -107,15 +102,15 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 토큰에서 Claim(Payload) 정보를 파싱하고 서명/만료를 검증합니다.
+     * 토큰에서 Claim(Payload) 정보를 파싱하고 서명/만료를 검증합니다
      */
     private Claims parseClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .requireIssuer(ISSUER) // 내가 발급한 토큰이 맞는지 확인
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     /**
