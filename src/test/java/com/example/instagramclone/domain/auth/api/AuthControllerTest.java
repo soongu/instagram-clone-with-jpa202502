@@ -1,7 +1,5 @@
-package com.example.instagramclone.controller;
+package com.example.instagramclone.domain.auth.api;
 
-import com.example.instagramclone.domain.auth.api.LoginRequest;
-import com.example.instagramclone.domain.auth.api.SignUpRequest;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,15 +9,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test") // application-test.yml 로드: JWT 키 고정값, H2 인메모리 DB
 @Transactional // 테스트 데이터 롤백 보장
 class AuthControllerTest {
 
@@ -58,7 +59,7 @@ class AuthControllerTest {
                         .content(content))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.tokens.accessToken").exists())
-                .andExpect(jsonPath("$.data.tokens.refreshToken").exists())
+                .andExpect(jsonPath("$.data.tokens.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.data.user.username").value("integration_user"))
                 .andExpect(jsonPath("$.data.user.name").value("Integration Test"));
     }
@@ -178,5 +179,66 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.error.status").value(400))
                 .andExpect(jsonPath("$.error.code").value("C001")) // CommonErrorCode.INVALID_INPUT_VALUE
                 .andExpect(jsonPath("$.error.path").value("/api/auth/signup"));
+    }
+
+    // ===============================================
+    // 중복 확인(check-duplicate) API 통합 테스트
+    // ===============================================
+
+    @Test
+    @DisplayName("중복 확인 API - 사용 가능한 username 조회 시 available: true 반환")
+    void check_duplicate_username_available() throws Exception {
+        // setUp()에서 "integration_user" 생성됨 → 전혀 다른 username은 사용 가능
+        mockMvc.perform(get("/api/auth/check-duplicate")
+                        .param("type", "username")
+                        .param("value", "brand_new_user_xyz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(true))
+                .andExpect(jsonPath("$.data.message").value("사용 가능한 username입니다."));
+    }
+
+    @Test
+    @DisplayName("중복 확인 API - 이미 사용 중인 username 조회 시 available: false 반환")
+    void check_duplicate_username_taken() throws Exception {
+        // setUp()에서 생성된 "integration_user" 로 조회
+        mockMvc.perform(get("/api/auth/check-duplicate")
+                        .param("type", "username")
+                        .param("value", "integration_user"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.available").value(false))
+                .andExpect(jsonPath("$.data.message").value("이미 사용 중인 username입니다."));
+    }
+
+    @Test
+    @DisplayName("중복 확인 API - 사용 가능한 email 조회 시 available: true 반환")
+    void check_duplicate_email_available() throws Exception {
+        mockMvc.perform(get("/api/auth/check-duplicate")
+                        .param("type", "email")
+                        .param("value", "nobody@never.com"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.available").value(true));
+    }
+
+    @Test
+    @DisplayName("중복 확인 API - 이미 등록된 email 조회 시 available: false 반환")
+    void check_duplicate_email_taken() throws Exception {
+        // setUp()에서 "inter@test.com"으로 가입됨
+        mockMvc.perform(get("/api/auth/check-duplicate")
+                        .param("type", "email")
+                        .param("value", "inter@test.com"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.available").value(false));
+    }
+
+    @Test
+    @DisplayName("중복 확인 API - 지원하지 않는 type 요청 시 400 Bad Request 반환")
+    void check_duplicate_invalid_type_returns_400() throws Exception {
+        mockMvc.perform(get("/api/auth/check-duplicate")
+                        .param("type", "invalid_type")
+                        .param("value", "somevalue"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
     }
 }

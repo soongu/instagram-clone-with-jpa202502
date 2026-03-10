@@ -1,4 +1,4 @@
-# Instagram Clone Project (JPA)
+# Instagram Clone Project
 
 ## 🛠️ 초기 실행 방법
 

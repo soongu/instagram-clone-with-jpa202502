@@ -1,10 +1,11 @@
-package com.example.instagramclone.config;
+package com.example.instagramclone.infrastructure.security.config;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test") // application-test.yml 로드: JWT 키 고정값, H2 인메모리 DB
 class SecurityConfigTest {
 
     @Autowired
@@ -37,17 +39,13 @@ class SecurityConfigTest {
     @Test
     @DisplayName("인증되지 않은 사용자가 보호된 API(예: 로그아웃, 피드 조회 등)에 접근하면 403 Forbidden 을 반환한다 (우리가 아직 401 처리를 안 했기 때문!)")
     void unauthenticatedUser_cannotAccess_protectedApis() throws Exception {
-        // [실습 포인트] 
-        // 분명 인증되지 않은 요청이므로 401 Unauthorized가 와야 할 것 같지만,
-        // 스프링 시큐리티는 기본적으로 우리가 AuthenticationEntryPoint를 설정하지 않으면 403 Forbidden을 내려보냅니다!
-        // 이 현상을 직접 눈으로 확인한 뒤, "과제 2번: AuthenticationEntryPoint 구현"을 도입하는 완벽한 빌드업입니다.
-        
-        // 로그아웃 (permitAll에 없으므로 인증 필요 -> 토큰 없으므로 403 발생)
-        mockMvc.perform(post("/api/auth/logout"))
-                .andExpect(status().isForbidden());
 
-        // 일반 보호된 API (존재하지 않는 API라도 시큐리티 단에서 먼저 403을 내려줘야 함)
+        // 로그아웃 (permitAll에 없으므로 인증 필요 -> 토큰 없으므로 401 발생)
+        mockMvc.perform(post("/api/auth/logout"))
+                .andExpect(status().isUnauthorized());
+
+        // 일반 보호된 API
         mockMvc.perform(get("/api/posts"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }
