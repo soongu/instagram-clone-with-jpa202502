@@ -6,6 +6,7 @@ import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.post.api.PostCreateRequest;
 import com.example.instagramclone.domain.post.api.PostResponse;
+import com.example.instagramclone.domain.post.api.ProfilePostResponse;
 import com.example.instagramclone.domain.post.domain.Post;
 import com.example.instagramclone.domain.post.domain.PostImage;
 import com.example.instagramclone.domain.post.domain.PostImageRepository;
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -87,34 +89,46 @@ public class PostService {
     }
 
     public FeedResponse<PostResponse> getFeed(Pageable pageable) {
-        // 1. 단방향 조회 전략: 부모(Post)만 페이징 조회합니다. (안전한 페이징)
         Slice<Post> postSlice = postRepository.findAllWithImages(pageable);
+        return buildFeedResponse(postSlice, postMapper::toResponse);
+    }
+
+    public FeedResponse<ProfilePostResponse> getMemberPosts(Long memberId, Pageable pageable) {
+        Slice<Post> postSlice = postRepository.findAllByWriterId(memberId, pageable);
+        return buildFeedResponse(postSlice, postMapper::toProfilePostResponse);
+    }
+
+    /**
+     * Post Slice를 FeedResponse로 변환하는 공통 로직.
+     *
+     * 이미지 IN 쿼리 → 그룹핑 → imgOrder 정렬까지 항상 동일하고,
+     * 마지막 DTO 변환 방식만 호출부마다 다르므로 BiFunction으로 주입받습니다.
+     * 덕분에 피드 타입이 추가되어도 이 메서드 하나로 재사용할 수 있습니다.
+     */
+    private <T> FeedResponse<T> buildFeedResponse(Slice<Post> postSlice, BiFunction<Post, List<PostImage>, T> toDto) {
         List<Post> posts = postSlice.getContent();
 
-        // 엣지 케이스 방어: 조회된 게시물이 없으면 빈 리스트로 즉시 반환하여 불필요한 IN 쿼리 방지
         if (posts.isEmpty()) {
             return FeedResponse.of(postSlice.hasNext(), Collections.emptyList());
         }
 
-        // 2. 조회된 부모들을 기반으로 자식 이미지들을 IN 쿼리 한 방으로 전부 가져옵니다.
-        List<PostImage> allImages = postImageRepository.findByPostIn(posts);
+        Map<Post, List<PostImage>> imageMap = groupImagesByPost(posts);
 
-        // 3. 자식 이미지들을 부모의 ID(또는 엔티티)를 기준으로 메모리에서 그룹핑합니다.
-        Map<Post, List<PostImage>> imageMap = allImages.stream()
-                .collect(Collectors.groupingBy(PostImage::getPost));
-
-        // 4. 응답을 엔티티에서 DTO(PostResponse)로 변환 (그룹핑된 이미지를 수동으로 조립 및 정렬)
-        List<PostResponse> feedList = posts.stream()
-                .map(post -> {
-                    List<PostImage> postImages = imageMap.getOrDefault(post, Collections.emptyList())
-                            .stream()
-                            .sorted(Comparator.comparing(PostImage::getImgOrder))
-                            .toList();
-                    return postMapper.toResponse(post, postImages);
-                })
+        List<T> list = posts.stream()
+                .map(post -> toDto.apply(post, getSortedImages(post, imageMap)))
                 .toList();
 
-        // slice.hasNext()를 통해 다음 페이지 여부 전달
-        return FeedResponse.of(postSlice.hasNext(), feedList);
+        return FeedResponse.of(postSlice.hasNext(), list);
+    }
+
+    private Map<Post, List<PostImage>> groupImagesByPost(List<Post> posts) {
+        return postImageRepository.findByPostIn(posts).stream()
+                .collect(Collectors.groupingBy(PostImage::getPost));
+    }
+
+    private List<PostImage> getSortedImages(Post post, Map<Post, List<PostImage>> imageMap) {
+        return imageMap.getOrDefault(post, Collections.emptyList()).stream()
+                .sorted(Comparator.comparing(PostImage::getImgOrder))
+                .toList();
     }
 }

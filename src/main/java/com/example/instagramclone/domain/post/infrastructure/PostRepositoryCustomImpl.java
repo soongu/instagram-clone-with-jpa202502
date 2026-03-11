@@ -56,4 +56,32 @@ public class PostRepositoryCustomImpl implements PostRepositoryCustom {
 
         return new SliceImpl<>(posts, pageable, hasNext);
     }
+
+    /**
+     * 특정 회원의 게시글을 최신순으로 페이징 조회합니다.
+     *
+     * findAllWithImages와의 차이점:
+     * - WHERE 조건(post.writer.id.eq(writerId))으로 특정 회원 게시글만 필터링합니다.
+     * - 프로필 페이지에서는 작성자 정보가 이미 표시되어 있으므로 writer fetch join이 불필요합니다.
+     *   이미지 조회는 서비스 레이어에서 IN 쿼리로 별도 처리합니다.
+     */
+    @Override
+    public Slice<Post> findAllByWriterId(Long writerId, Pageable pageable) {
+        QPost post = QPost.post;
+
+        List<Post> posts = queryFactory
+                .selectFrom(post)
+                .where(post.writer.id.eq(writerId))
+                .orderBy(post.id.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1L)
+                .fetch();
+
+        boolean hasNext = posts.size() > pageable.getPageSize();
+        if (hasNext) {
+            posts.remove(posts.size() - 1);
+        }
+
+        return new SliceImpl<>(posts, pageable, hasNext);
+    }
 }

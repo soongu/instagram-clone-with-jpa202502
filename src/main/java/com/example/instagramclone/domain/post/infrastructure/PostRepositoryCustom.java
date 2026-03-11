@@ -29,4 +29,10 @@ public interface PostRepositoryCustom {
     //
     //         힌트: Slice<Post> findAllWithImages(Pageable pageable);
     Slice<Post> findAllWithImages(Pageable pageable);
+
+    /**
+     * 특정 회원의 게시글을 최신순으로 페이징 조회합니다.
+     * 프로필 페이지 그리드 API에서 사용합니다.
+     */
+    Slice<Post> findAllByWriterId(Long writerId, Pageable pageable);
 }

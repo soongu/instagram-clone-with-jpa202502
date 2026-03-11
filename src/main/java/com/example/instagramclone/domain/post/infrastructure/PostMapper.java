@@ -3,6 +3,7 @@ package com.example.instagramclone.domain.post.infrastructure;
 import com.example.instagramclone.domain.post.api.LikeStatusResponse;
 import com.example.instagramclone.domain.post.api.PostImageResponse;
 import com.example.instagramclone.domain.post.api.PostResponse;
+import com.example.instagramclone.domain.post.api.ProfilePostResponse;
 import com.example.instagramclone.domain.post.domain.Post;
 import com.example.instagramclone.domain.post.domain.PostImage;
 import org.mapstruct.Mapper;
@@ -58,6 +59,31 @@ public interface PostMapper {
                 toImageResponses(images),
                 post.getCreatedAt(),
                 LikeStatusResponse.empty(),
+                0
+        );
+    }
+
+    /**
+     * Post + 해당 게시글의 이미지 리스트 → ProfilePostResponse
+     *
+     * 프로필 그리드에서는 썸네일(첫 번째 이미지)만 필요하므로,
+     * 전체 이미지 리스트를 받아서 서비스 레이어에서 imgOrder 기준으로 정렬 후 전달합니다.
+     * likeCount, commentCount는 좋아요/댓글 기능 구현 전까지 0으로 고정합니다.
+     */
+    default ProfilePostResponse toProfilePostResponse(Post post, List<PostImage> images) {
+
+        if (post == null) {
+            return null;
+        }
+
+        String thumbnailUrl = images.isEmpty() ? null : images.get(0).getImageUrl();
+        boolean multipleImages = images.size() > 1;
+
+        return new ProfilePostResponse(
+                post.getId(),
+                thumbnailUrl,
+                multipleImages,
+                0,
                 0
         );
     }

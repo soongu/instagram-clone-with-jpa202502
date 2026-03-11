@@ -20,13 +20,12 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/posts")
 @RequiredArgsConstructor
 public class PostController {
 
     private final PostService postService;
 
-    @PostMapping
+    @PostMapping("/api/posts")
     public ResponseEntity<ApiResponse<PostCreateResponse>> createPost(
             @RequestPart("feed") PostCreateRequest request,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
@@ -39,7 +38,7 @@ public class PostController {
                 .body(ApiResponse.success(PostCreateResponse.from(postId)));
     }
 
-    @GetMapping
+    @GetMapping("/api/posts")
     public ResponseEntity<ApiResponse<FeedResponse<PostResponse>>> getFeed(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "5") int size,
@@ -50,6 +49,20 @@ public class PostController {
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
 
         FeedResponse<PostResponse> response = postService.getFeed(pageable);
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // URL이 /members/...로 시작하지만, 반환 리소스가 Post이므로 PostController에서 처리합니다.
+    @GetMapping("/api/members/{memberId}/posts")
+    public ResponseEntity<ApiResponse<FeedResponse<ProfilePostResponse>>> getMemberPosts(
+            @PathVariable Long memberId,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "12") int size) {
+
+        Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
+
+        FeedResponse<ProfilePostResponse> response = postService.getMemberPosts(memberId, pageable);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
