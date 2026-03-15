@@ -41,15 +41,14 @@ public interface PostMapper {
     /**
      * Post + List<PostImage> → PostResponse
      *
-     * likeStatus.likeCount는 Post 비정규화 필드 사용. liked는 Step 4에서 로그인 기준 채움.
-     * toImageResponses()를 재사용하여 이미지 리스트 변환도 위임합니다.
+     * @param liked 로그인 회원이 이 글에 좋아요 눌렀는지 (피드 Step 4 — PostLike 배치 조회 결과)
      */
-    default PostResponse toResponse(Post post, List<PostImage> images) {
-        
+    default PostResponse toResponse(Post post, List<PostImage> images, boolean liked) {
+
         if (post == null) {
             return null;
         }
-        
+
         return new PostResponse(
                 post.getId(),
                 post.getContent(),
@@ -57,7 +56,7 @@ public interface PostMapper {
                 post.getWriter().getProfileImageUrl(),
                 toImageResponses(images),
                 post.getCreatedAt(),
-                new LikeStatusResponse(false, post.getLikeCount()),
+                new LikeStatusResponse(liked, post.getLikeCount()),
                 0
         );
     }

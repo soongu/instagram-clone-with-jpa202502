@@ -50,7 +50,7 @@ public class PostController {
         // 파라미터 검증 및 Pageable 생성 (관심사 분리)
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
 
-        FeedResponse<PostResponse> response = postService.getFeed(pageable);
+        FeedResponse<PostResponse> response = postService.getFeed(pageable, loginUser.id());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -69,12 +69,7 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /**
-     * [Day 12 Step 2] TODO: 좋아요 토글 API 구현
-     * POST /api/posts/{postId}/likes 호출 시 추가/취소 토글.
-     * 로그인 사용자(loginUser.id())와 postId를 PostLikeService.toggleLike()에 전달하고,
-     * LikeStatusResponse(liked, likeCount)를 반환합니다.
-     */
+    /** 좋아요 토글 — 응답 liked·likeCount(비정규화) */
     @PostMapping("/api/posts/{postId}/likes")
     public ResponseEntity<ApiResponse<LikeStatusResponse>> toggleLike(
             @PathVariable Long postId,
