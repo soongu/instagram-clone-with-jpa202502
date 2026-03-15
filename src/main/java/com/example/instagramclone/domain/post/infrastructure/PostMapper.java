@@ -41,7 +41,7 @@ public interface PostMapper {
     /**
      * Post + List<PostImage> → PostResponse
      *
-     * @param liked 로그인 회원이 이 글에 좋아요 눌렀는지 (피드 Step 4 — PostLike 배치 조회 결과)
+     * @param liked 피드: QueryDSL EXISTS / 또는 서비스에서 전달
      */
     default PostResponse toResponse(Post post, List<PostImage> images, boolean liked) {
 

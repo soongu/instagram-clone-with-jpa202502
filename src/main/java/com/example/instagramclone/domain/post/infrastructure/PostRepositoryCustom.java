@@ -18,11 +18,15 @@ import org.springframework.data.domain.Slice;
  */
 public interface PostRepositoryCustom {
 
-    Slice<Post> findAllWithImages(Pageable pageable);
 
     /**
      * 특정 회원의 게시글을 최신순으로 페이징 조회합니다.
      * 프로필 페이지 그리드 API에서 사용합니다.
      */
     Slice<Post> findAllByWriterId(Long writerId, Pageable pageable);
+
+    /**
+     * 메인 피드: Post + writer fetchJoin + 로그인 회원의 좋아요 여부를 EXISTS 서브쿼리로 한 번에 조회 (과제: N+1 없음).
+     */
+    Slice<PostFeedRow> findFeedWithLiked(Pageable pageable, Long loginMemberId);
 }

@@ -10,9 +10,8 @@ import com.example.instagramclone.domain.post.api.PostResponse;
 import com.example.instagramclone.domain.post.domain.Post;
 import com.example.instagramclone.domain.post.domain.PostImage;
 import com.example.instagramclone.domain.post.domain.PostImageRepository;
-import com.example.instagramclone.domain.post.domain.PostLike;
-import com.example.instagramclone.domain.post.domain.PostLikeRepository;
 import com.example.instagramclone.domain.post.domain.PostRepository;
+import com.example.instagramclone.domain.post.infrastructure.PostFeedRow;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,9 +34,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
@@ -48,7 +45,7 @@ import static org.mockito.Mockito.never;
  *
  * [테스트 범위]
  * - create(): 이미지 유무, imgOrder 순서 검증, getReferenceById 위임 검증, IOException 래핑
- * - getFeed(): Step 4 liked 배치 조회, 빈 피드, 이미지 그룹핑, hasNext
+ * - getFeed(): QueryDSL findFeedWithLiked, 빈 피드, 이미지 그룹핑, liked
  */
 @ExtendWith(MockitoExtension.class)
 class PostServiceTest {
@@ -64,9 +61,6 @@ class PostServiceTest {
 
     @Mock
     private MemberService memberService;
-
-    @Mock
-    private PostLikeRepository postLikeRepository;
 
     @Mock
     private FileStore fileStore;
@@ -250,18 +244,17 @@ class PostServiceTest {
     class GetFeed {
 
         @Test
-        @DisplayName("성공 - 게시물이 없으면 빈 리스트 즉시 반환, 이미지 조회 쿼리 미호출 (불필요한 IN 쿼리 방지)")
+        @DisplayName("성공 - 게시물이 없으면 빈 리스트, 이미지·PostLike 조회 없음")
         void empty_feed_returns_immediately_without_image_query() {
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(emptySlice);
+            Slice<PostFeedRow> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(emptySlice);
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
             assertThat(response.feedList()).isEmpty();
             assertThat(response.hasNext()).isFalse();
             then(postImageRepository).shouldHaveNoInteractions();
-            then(postLikeRepository).shouldHaveNoInteractions();
         }
 
         @Test
@@ -271,11 +264,9 @@ class PostServiceTest {
             Member writer = buildMockMember(1L, "testuser");
             Post post = buildMockPost(100L, "이미지 없는 글", writer);
 
-            Slice<Post> postSlice = new SliceImpl<>(List.of(post), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(postSlice);
+            Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(Collections.emptyList());
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -298,11 +289,9 @@ class PostServiceTest {
 
             Post post = buildMockPost(100L, "매핑 테스트 내용", writer);
 
-            Slice<Post> postSlice = new SliceImpl<>(List.of(post), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(postSlice);
+            Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(Collections.emptyList());
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -320,16 +309,13 @@ class PostServiceTest {
             Member writer = buildMockMember(1L, "sortuser");
             Post post = buildMockPost(100L, "정렬 테스트", writer);
 
-            // 의도적으로 순서를 뒤바꾸어 저장
             PostImage image3 = PostImage.builder().post(post).imageUrl("/img/3.jpg").imgOrder(3).build();
             PostImage image1 = PostImage.builder().post(post).imageUrl("/img/1.jpg").imgOrder(1).build();
             PostImage image2 = PostImage.builder().post(post).imageUrl("/img/2.jpg").imgOrder(2).build();
 
-            Slice<Post> postSlice = new SliceImpl<>(List.of(post), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(postSlice);
+            Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(List.of(image3, image1, image2));
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -351,18 +337,17 @@ class PostServiceTest {
             PostImage imgB = PostImage.builder().post(post2).imageUrl("/img/b.jpg").imgOrder(1).build();
             PostImage imgC = PostImage.builder().post(post2).imageUrl("/img/c.jpg").imgOrder(2).build();
 
-            Slice<Post> postSlice = new SliceImpl<>(List.of(post1, post2), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(postSlice);
+            Slice<PostFeedRow> slice = new SliceImpl<>(
+                    List.of(new PostFeedRow(post1, false), new PostFeedRow(post2, false)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post1, post2)))
                     .willReturn(List.of(imgA, imgB, imgC));
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
             assertThat(response.feedList()).hasSize(2);
-            assertThat(response.feedList().get(0).images()).hasSize(1); // post1
-            assertThat(response.feedList().get(1).images()).hasSize(2); // post2
+            assertThat(response.feedList().get(0).images()).hasSize(1);
+            assertThat(response.feedList().get(1).images()).hasSize(2);
         }
 
         @Test
@@ -373,11 +358,10 @@ class PostServiceTest {
             Post post1 = buildMockPost(1L, "첫 번째", writer);
             Post post2 = buildMockPost(2L, "두 번째", writer);
 
-            Slice<Post> sliceWithNext = new SliceImpl<>(List.of(post1, post2), pageable, true);
-            given(postRepository.findAllWithImages(pageable)).willReturn(sliceWithNext);
+            Slice<PostFeedRow> sliceWithNext = new SliceImpl<>(
+                    List.of(new PostFeedRow(post1, false), new PostFeedRow(post2, false)), pageable, true);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(sliceWithNext);
             given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -391,11 +375,9 @@ class PostServiceTest {
             Member writer = buildMockMember(1L, "user");
             Post post = buildMockPost(1L, "마지막 글", writer);
 
-            Slice<Post> lastSlice = new SliceImpl<>(List.of(post), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(lastSlice);
+            Slice<PostFeedRow> lastSlice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(lastSlice);
             given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -403,48 +385,42 @@ class PostServiceTest {
         }
 
         @Test
-        @DisplayName("Step 4 - PostLike 배치 조회로 liked 세팅, 좋아요 안 한 글은 false")
-        void feed_liked_true_only_when_post_like_exists() {
+        @DisplayName("QueryDSL 1쿼리 결과: 두 번째 글만 liked true (findFeedWithLiked가 반영)")
+        void feed_liked_from_single_query_row() {
             Long loginId = 7L;
             Pageable pageable = PageRequest.of(0, 10);
             Member writer = buildMockMember(1L, "writer");
             Post post1 = buildMockPost(10L, "글1", writer);
             Post post2 = buildMockPost(20L, "글2", writer);
-            Member liker = buildMockMember(loginId, "liker");
-            PostLike likeOnPost2 = PostLike.create(liker, post2);
 
-            Slice<Post> slice = new SliceImpl<>(List.of(post1, post2), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(slice);
+            Slice<PostFeedRow> slice = new SliceImpl<>(
+                    List.of(new PostFeedRow(post1, false), new PostFeedRow(post2, true)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, loginId)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post1, post2))).willReturn(Collections.emptyList());
-            given(memberService.getReferenceById(loginId)).willReturn(liker);
-            given(postLikeRepository.findByMemberAndPostIn(eq(liker), anyList()))
-                    .willReturn(List.of(likeOnPost2));
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, loginId);
 
             assertThat(response.feedList().get(0).likeStatus().liked()).isFalse();
             assertThat(response.feedList().get(1).likeStatus().liked()).isTrue();
-            then(postLikeRepository).should().findByMemberAndPostIn(eq(liker), anyList());
+            then(postRepository).should().findFeedWithLiked(pageable, loginId);
         }
 
         @Test
-        @DisplayName("피드 likeStatus.likeCount는 Post 비정규화 값, 좋아요 없으면 liked false")
-        void likeStatus_likeCount_from_post_commentCount_still_zero() {
+        @DisplayName("피드 likeCount 비정규화, liked는 QueryDSL EXISTS 결과")
+        void likeStatus_likeCount_from_post() {
             Pageable pageable = PageRequest.of(0, 10);
             Member writer = buildMockMember(1L, "testuser");
             Post post = buildMockPost(1L, "글", writer);
             ReflectionTestUtils.setField(post, "likeCount", 42);
 
-            Slice<Post> postSlice = new SliceImpl<>(List.of(post), pageable, false);
-            given(postRepository.findAllWithImages(pageable)).willReturn(postSlice);
+            Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, true)), pageable, false);
+            given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
-            given(memberService.getReferenceById(1L)).willReturn(buildMockMember(1L, "login"));
-            given(postLikeRepository.findByMemberAndPostIn(any(Member.class), anyList())).willReturn(Collections.emptyList());
 
             FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
             PostResponse postResponse = response.feedList().get(0);
-            assertThat(postResponse.likeStatus().liked()).isFalse();
+            assertThat(postResponse.likeStatus().liked()).isTrue();
             assertThat(postResponse.likeStatus().likeCount()).isEqualTo(42);
             assertThat(postResponse.commentCount()).isZero();
         }
