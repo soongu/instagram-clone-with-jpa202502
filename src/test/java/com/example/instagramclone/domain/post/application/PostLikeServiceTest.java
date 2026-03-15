@@ -34,7 +34,7 @@ import static org.mockito.Mockito.never;
  * - 게시물 없음 → POST_NOT_FOUND 예외
  * - 아직 좋아요 안 함 → 추가 후 liked=true, count 반환
  * - 이미 좋아요 함 → 삭제 후 liked=false, count 반환
- * - 리포지토리 호출 행동 검증 (save / deleteByMemberAndPost / countByPost)
+ * - 비정규화: 토글 후 응답 likeCount = post.likeCount (COUNT 쿼리 없음)
  */
 @ExtendWith(MockitoExtension.class)
 class PostLikeServiceTest {
@@ -112,23 +112,22 @@ class PostLikeServiceTest {
             given(postRepository.findById(postId)).willReturn(Optional.of(post));
             given(memberService.getReferenceById(loginMemberId)).willReturn(member);
             given(postLikeRepository.existsByMemberAndPost(member, post)).willReturn(false);
-            given(postLikeRepository.countByPost(post)).willReturn(1L); // 추가 후 1개
 
             // when
             LikeStatusResponse response = postLikeService.toggleLike(loginMemberId, postId);
 
-            // then - 응답 검증
+            // then - 비정규화 +1
             assertThat(response.liked()).isTrue();
             assertThat(response.likeCount()).isEqualTo(1);
+            assertThat(post.getLikeCount()).isEqualTo(1);
 
-            // then - PostLike 한 건 저장되었는지
             ArgumentCaptor<PostLike> captor = ArgumentCaptor.forClass(PostLike.class);
             then(postLikeRepository).should().save(captor.capture());
             assertThat(captor.getValue().getMember()).isSameAs(member);
             assertThat(captor.getValue().getPost()).isSameAs(post);
 
-            then(postLikeRepository).should().countByPost(post);
             then(postLikeRepository).should(never()).deleteByMemberAndPost(any(), any());
+            then(postLikeRepository).should(never()).countByPost(any());
         }
 
         @Test
@@ -139,42 +138,41 @@ class PostLikeServiceTest {
             Long postId = 10L;
             Member member = buildMockMember(loginMemberId, "testuser");
             Post post = buildMockPost(postId, "글 내용", member);
+            ReflectionTestUtils.setField(post, "likeCount", 1);
 
             given(postRepository.findById(postId)).willReturn(Optional.of(post));
             given(memberService.getReferenceById(loginMemberId)).willReturn(member);
             given(postLikeRepository.existsByMemberAndPost(member, post)).willReturn(true);
-            given(postLikeRepository.countByPost(post)).willReturn(0L); // 취소 후 0개
 
-            // when
             LikeStatusResponse response = postLikeService.toggleLike(loginMemberId, postId);
 
-            // then - 응답 검증
             assertThat(response.liked()).isFalse();
-            assertThat(response.likeCount()).isEqualTo(0);
+            assertThat(response.likeCount()).isZero();
+            assertThat(post.getLikeCount()).isZero();
 
-            // then - 삭제만 호출되고 save는 호출되지 않음
             then(postLikeRepository).should().deleteByMemberAndPost(member, post);
-            then(postLikeRepository).should().countByPost(post);
             then(postLikeRepository).should(never()).save(any(PostLike.class));
+            then(postLikeRepository).should(never()).countByPost(any());
         }
 
         @Test
-        @DisplayName("성공 - 좋아요 추가 시 countByPost() 반환값이 응답 likeCount에 그대로 반영된다")
-        void success_likeCount_reflects_countByPost_result() {
+        @DisplayName("성공 - 기존 likeCount 6에서 추가 시 응답·엔티티 모두 7")
+        void success_likeCount_incremented_from_denormalized_base() {
             Long loginMemberId = 1L;
             Long postId = 10L;
             Member member = buildMockMember(loginMemberId, "testuser");
             Post post = buildMockPost(postId, "글 내용", member);
+            ReflectionTestUtils.setField(post, "likeCount", 6);
 
             given(postRepository.findById(postId)).willReturn(Optional.of(post));
             given(memberService.getReferenceById(loginMemberId)).willReturn(member);
             given(postLikeRepository.existsByMemberAndPost(member, post)).willReturn(false);
-            given(postLikeRepository.countByPost(post)).willReturn(7L); // 이미 6명이 좋아요한 글에 추가 → 7
 
             LikeStatusResponse response = postLikeService.toggleLike(loginMemberId, postId);
 
             assertThat(response.liked()).isTrue();
             assertThat(response.likeCount()).isEqualTo(7);
+            assertThat(post.getLikeCount()).isEqualTo(7);
         }
     }
 }

@@ -41,8 +41,7 @@ public interface PostMapper {
     /**
      * Post + List<PostImage> → PostResponse
      *
-     * writer.username, writer.profileImageUrl 처럼 중첩 객체 접근이 필요하고,
-     * likeStatus·commentCount 같은 고정값도 있어 default 메서드로 직접 조립합니다.
+     * likeStatus.likeCount는 Post 비정규화 필드 사용. liked는 Step 4에서 로그인 기준 채움.
      * toImageResponses()를 재사용하여 이미지 리스트 변환도 위임합니다.
      */
     default PostResponse toResponse(Post post, List<PostImage> images) {
@@ -58,7 +57,7 @@ public interface PostMapper {
                 post.getWriter().getProfileImageUrl(),
                 toImageResponses(images),
                 post.getCreatedAt(),
-                LikeStatusResponse.empty(), // [Day 12 Step 4] 로그인 회원 기준 liked, likeCount 조회 후 전달
+                new LikeStatusResponse(false, post.getLikeCount()),
                 0
         );
     }
@@ -68,7 +67,7 @@ public interface PostMapper {
      *
      * 프로필 그리드에서는 썸네일(첫 번째 이미지)만 필요하므로,
      * 전체 이미지 리스트를 받아서 서비스 레이어에서 imgOrder 기준으로 정렬 후 전달합니다.
-     * likeCount, commentCount는 좋아요/댓글 기능 구현 전까지 0으로 고정합니다.
+     * likeCount는 Post 비정규화 값. commentCount는 댓글 미구현 시 0.
      */
     default ProfilePostResponse toProfilePostResponse(Post post, List<PostImage> images) {
 
@@ -83,7 +82,7 @@ public interface PostMapper {
                 post.getId(),
                 thumbnailUrl,
                 multipleImages,
-                0,
+                post.getLikeCount(),
                 0
         );
     }

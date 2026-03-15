@@ -383,13 +383,12 @@ class PostServiceTest {
         }
 
         @Test
-        @DisplayName("회귀 방지 - likeStatus는 항상 {liked: false, likeCount: 0}이고 commentCount는 항상 0이다")
-        void likeStatus_and_commentCount_are_fixed_default_values() {
-            // 좋아요/댓글 기능이 미구현된 현재, 하드코딩된 기본값을 보호하는 회귀 방지 테스트.
-            // 이 기능이 실제로 구현될 때 이 테스트가 실패하며 변경 시점을 알린다.
+        @DisplayName("피드 likeStatus.likeCount는 Post 비정규화 값, liked는 Step 4 전까지 false")
+        void likeStatus_likeCount_from_post_commentCount_still_zero() {
             Pageable pageable = PageRequest.of(0, 10);
             Member writer = buildMockMember(1L, "testuser");
             Post post = buildMockPost(1L, "글", writer);
+            ReflectionTestUtils.setField(post, "likeCount", 42);
 
             Slice<Post> postSlice = new SliceImpl<>(List.of(post), pageable, false);
             given(postRepository.findAllWithImages(pageable)).willReturn(postSlice);
@@ -399,7 +398,7 @@ class PostServiceTest {
 
             PostResponse postResponse = response.feedList().get(0);
             assertThat(postResponse.likeStatus().liked()).isFalse();
-            assertThat(postResponse.likeStatus().likeCount()).isZero();
+            assertThat(postResponse.likeStatus().likeCount()).isEqualTo(42);
             assertThat(postResponse.commentCount()).isZero();
         }
     }

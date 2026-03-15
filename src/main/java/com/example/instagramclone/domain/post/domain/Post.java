@@ -27,8 +27,8 @@ public class Post extends BaseEntity {
     private Member writer;
 
     /**
-     * [Day 12 Part 2] 비정규화: 조회 시 COUNT(*) 대신 이 필드 사용.
-     * Part 2에서 토글 시 +1/-1 갱신. Step 2에서는 사용하지 않고 countByPost()로 응답만 채움.
+     * [Day 12 Step 3] 비정규화: 피드/프로필 조회 시 post_like COUNT(*) 대신 이 값 사용.
+     * 토글 시 +1/-1 갱신. (동시 폭주 시 lost update 가능 → Day 17 락으로 보완)
      */
     @Column(nullable = false)
     private int likeCount = 0;
@@ -40,10 +40,11 @@ public class Post extends BaseEntity {
     }
 
     /**
-     * [Day 12 Part 2] 비정규화 likeCount 갱신. 토글 로직에서 좋아요 추가 시 +1, 취소 시 -1 호출.
+     * [Day 12 Step 3] 좋아요 추가 시 +1, 취소 시 -1.
+     * 취소 후 음수 방지(비정규화/실패 시나리오에서 최소 0 유지).
      */
     public void changeLikeCountBy(int delta) {
-        this.likeCount += delta;
+        this.likeCount = Math.max(0, this.likeCount + delta);
     }
 
 }

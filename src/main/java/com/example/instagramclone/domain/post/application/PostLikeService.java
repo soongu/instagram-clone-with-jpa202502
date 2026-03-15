@@ -14,11 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * [Day 12 Step 2] 좋아요 토글 API 로직.
+ * [Day 12 Step 2~3] 좋아요 토글 API.
  *
- * 이 단계에서는 "있는지 확인 → 있으면 삭제, 없으면 추가"만 다룹니다.
- * likeCount는 DB에서 COUNT(*)로 조회해 응답에 넣습니다.
- *
+ * - Step 2: PostLike Insert/Delete 분기
+ * - Step 3: Post.likeCount 비정규화 (+1 / -1). 응답 likeCount는 COUNT(*) 대신 post.likeCount 사용.
+ *   ※ 동시에 같은 글에 좋아요가 몰리면 lost update 가능 → 나중 강의에서 락으로 다룸.
+ * ※ 취소 직후 DB 오류 등으로 post_like와 likeCount가 어긋날 수 있음 → 배치 보정 등 실무 대응.
  */
 @Service
 @RequiredArgsConstructor
@@ -29,39 +30,25 @@ public class PostLikeService {
     private final MemberService memberService;
 
     /**
-     * [Step 2] 좋아요 토글: 이미 누른 상태면 취소, 아니면 추가.
-     *
-     * 1) 게시물 조회 (없으면 404)
-     * 2) 로그인 회원 참조 (FK만 필요하므로 getReferenceById)
-     * 3) 이미 좋아요 했는지 존재 여부 조회
-     * 4) 했으면 삭제 후 liked=false, 안 했으면 저장 후 liked=true
-     * 5) 이 시점 기준으로 해당 게시물의 좋아요 개수를 COUNT 쿼리로 조회해 응답에 담음
+     * 좋아요 토글: 이미 누른 상태면 취소, 아니면 추가.
+     * 비정규화 likeCount는 삭제/저장과 같은 트랜잭션에서 -1 / +1 (응답·피드에서 COUNT 생략).
      */
     @Transactional
     public LikeStatusResponse toggleLike(Long loginMemberId, Long postId) {
-        // 1) 게시물 조회. 없으면 404(POST_NOT_FOUND)로 바로 응답.
-        //    ※ Post는 getReferenceById 쓰지 않음. 프록시는 DB 안 가서 "없는 postId"를 검증 못 함.
-        //       나중에 save(PostLike) 시 FK 위반으로 터지면 404가 아니라 500에 가까운 예외가 남.
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new PostException(PostErrorCode.POST_NOT_FOUND));
 
-        // 2) 로그인한 회원은 FK만 필요하므로 getReferenceById(프록시). SELECT 한 번 생략.
         Member member = memberService.getReferenceById(loginMemberId);
-
-        // 3) "이 회원이 이 게시물에 이미 좋아요를 눌렀는지" 한 번에 판단
         boolean alreadyLiked = postLikeRepository.existsByMemberAndPost(member, post);
 
         if (alreadyLiked) {
-            // 4-a) 이미 눌렀으면 레코드 삭제 → 좋아요 취소
             postLikeRepository.deleteByMemberAndPost(member, post);
-            long count = postLikeRepository.countByPost(post);
-            return new LikeStatusResponse(false, count);
-        } else {
-            // 4-b) 안 눌렀으면 PostLike 레코드 한 건 저장 → 좋아요 추가
-            PostLike postLike = PostLike.create(member, post);
-            postLikeRepository.save(postLike);
-            long count = postLikeRepository.countByPost(post);
-            return new LikeStatusResponse(true, count);
+            post.changeLikeCountBy(-1);
+            return new LikeStatusResponse(false, post.getLikeCount());
         }
+        PostLike postLike = PostLike.create(member, post);
+        postLikeRepository.save(postLike);
+        post.changeLikeCountBy(1);
+        return new LikeStatusResponse(true, post.getLikeCount());
     }
 }
