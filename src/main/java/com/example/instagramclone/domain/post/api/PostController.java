@@ -4,6 +4,7 @@ import com.example.instagramclone.core.common.dto.ApiResponse;
 import com.example.instagramclone.core.common.dto.FeedResponse;
 import com.example.instagramclone.core.util.PageableUtil;
 import com.example.instagramclone.infrastructure.security.annotation.LoginUser;
+import com.example.instagramclone.domain.post.application.PostLikeService;
 import com.example.instagramclone.domain.post.application.PostService;
 import com.example.instagramclone.infrastructure.security.dto.LoginUserInfoDto;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,7 @@ import java.util.List;
 public class PostController {
 
     private final PostService postService;
+    private final PostLikeService postLikeService;
 
     @PostMapping("/api/posts")
     public ResponseEntity<ApiResponse<PostCreateResponse>> createPost(
@@ -67,4 +69,17 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * [Day 12 Step 2] TODO: 좋아요 토글 API 구현
+     * POST /api/posts/{postId}/likes 호출 시 추가/취소 토글.
+     * 로그인 사용자(loginUser.id())와 postId를 PostLikeService.toggleLike()에 전달하고,
+     * LikeStatusResponse(liked, likeCount)를 반환합니다.
+     */
+    @PostMapping("/api/posts/{postId}/likes")
+    public ResponseEntity<ApiResponse<LikeStatusResponse>> toggleLike(
+            @PathVariable Long postId,
+            @LoginUser LoginUserInfoDto loginUser) {
+        LikeStatusResponse response = postLikeService.toggleLike(loginUser.id(), postId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

@@ -26,10 +26,13 @@ public class Post extends BaseEntity {
     @JoinColumn(name = "member_id", nullable = false)
     private Member writer;
 
-    // [과제 2 예시답안] 현업 트렌드(연관관계 다이어트)를 반영하여 양방향 매핑 제거 (단방향 매핑으로 변경)
-    // - cascade, orphanRemoval 옵션과 필드를 과감히 지워 도메인 결합도를 낮춤.
-    // @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    // private List<PostImage> images = new ArrayList<>();
+    /**
+     * [Day 12 Part 2] 비정규화: 조회 시 COUNT(*) 대신 이 필드 사용.
+     * 좋아요 추가 시 +1, 취소 시 -1. 
+     */
+    @Column(nullable = false)
+    private int likeCount = 0;
+
 
     @Builder
     public Post(String content, Member writer) {
@@ -37,6 +40,11 @@ public class Post extends BaseEntity {
         this.writer = writer;
     }
 
-    // [과제 2 예시답안] 양방향 연관관계 편의 메서드 제거됨.
-    // public void addImage(PostImage image) { ... }
+    /**
+     * [Day 12 Part 2] 비정규화 likeCount 갱신. 좋아요 추가 시 +1, 취소 시 -1.
+     */
+    public void changeLikeCountBy(int delta) {
+        this.likeCount += delta;
+    }
+
 }

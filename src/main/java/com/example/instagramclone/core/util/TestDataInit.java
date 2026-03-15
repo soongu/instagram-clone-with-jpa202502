@@ -43,7 +43,6 @@ public class TestDataInit implements ApplicationRunner {
 
             Member savedMember = memberRepository.save(member);
 
-            // TODO: [Day 7] N+1 조회 실습을 위해 계정당 5개의 피드와 각 2개의 사진을 무작위로 생성 (picsum 서비스 이용)
             for (int p = 1; p <= 5; p++) {
                 Post post = Post.builder()
                         .content(savedMember.getName() + "의 " + p + "번째 일상 피드입니다~! #테스트")

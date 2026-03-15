@@ -58,7 +58,7 @@ public interface PostMapper {
                 post.getWriter().getProfileImageUrl(),
                 toImageResponses(images),
                 post.getCreatedAt(),
-                LikeStatusResponse.empty(),
+                LikeStatusResponse.empty(), // [Day 12 Step 4] 로그인 회원 기준 liked, likeCount 조회 후 전달
                 0
         );
     }
