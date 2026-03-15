@@ -8,8 +8,10 @@ import com.example.instagramclone.domain.auth.domain.RefreshToken;
 import com.example.instagramclone.domain.auth.domain.RefreshTokenRepository;
 import com.example.instagramclone.domain.auth.api.LoginRequest;
 import com.example.instagramclone.domain.auth.api.SignUpRequest;
+import com.example.instagramclone.domain.auth.api.SignUpResponse;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.application.MemberService;
+import com.example.instagramclone.domain.member.infrastructure.MemberMapper;
 import com.example.instagramclone.infrastructure.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class AuthService {
 
     // MemberRepository 직접 의존 제거 → MemberService API를 통해서만 접근
     private final MemberService memberService;
+    private final MemberMapper memberMapper;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -35,9 +38,8 @@ public class AuthService {
      * auth 도메인은 "가입 후 바로 로그인 처리"라는 흐름을 담당합니다.
      */
     @Transactional
-    public void signUp(SignUpRequest request) {
-        // member 생성은 member 도메인에 완전히 위임
-        memberService.createMember(request);
+    public SignUpResponse signUp(SignUpRequest request) {
+        return memberMapper.toSignUpResponse(memberService.createMember(request));
     }
 
     /**
@@ -69,7 +71,7 @@ public class AuthService {
                         )
                 );
 
-        return LoginResponse.of(tokens, member);
+        return memberMapper.toLoginResponse(member, tokens);
     }
 
     /**

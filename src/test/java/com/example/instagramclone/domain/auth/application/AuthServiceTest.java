@@ -5,7 +5,6 @@ import com.example.instagramclone.core.exception.MemberException;
 import com.example.instagramclone.domain.auth.api.AuthTokens;
 import com.example.instagramclone.domain.auth.api.LoginRequest;
 import com.example.instagramclone.domain.auth.api.LoginResponse;
-import com.example.instagramclone.domain.auth.application.AuthService;
 import com.example.instagramclone.domain.auth.domain.RefreshToken;
 import com.example.instagramclone.domain.auth.domain.RefreshTokenRepository;
 import com.example.instagramclone.domain.member.application.MemberService;

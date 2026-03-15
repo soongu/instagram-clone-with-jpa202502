@@ -36,10 +36,10 @@ public class AuthController {
      */
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@RequestBody @Valid SignUpRequest signUpRequest) {
-        authService.signUp(signUpRequest);
+        SignUpResponse response = authService.signUp(signUpRequest);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(SignUpResponse.of(signUpRequest.username(), AuthConstants.SIGNUP_SUCCESS_MESSAGE)));
+                .body(ApiResponse.success(response));
     }
 
     /**

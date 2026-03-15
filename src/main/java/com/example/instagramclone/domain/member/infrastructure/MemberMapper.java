@@ -1,31 +1,43 @@
 package com.example.instagramclone.domain.member.infrastructure;
 
+import com.example.instagramclone.core.constant.AuthConstants;
+import com.example.instagramclone.domain.auth.api.AuthTokens;
+import com.example.instagramclone.domain.auth.api.LoginResponse;
 import com.example.instagramclone.domain.auth.api.SignUpResponse;
 import com.example.instagramclone.domain.member.domain.Member;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
-// TODO: 1. MapStruct가 이 인터페이스의 구현체를 자동 생성하도록 애노테이션을 추가하세요.
-//         @Mapper(componentModel = "spring")
-//
-//         [과제 2 안내]
-//         오늘 강의에서 PostMapper를 완성했다면,
-//         이 MemberMapper를 직접 작성해보는 것이 과제입니다.
-//         특히 비밀번호 필드 제외 방법을 반드시 익혀두세요!
+@Mapper(componentModel = "spring")
 public interface MemberMapper {
 
-    // TODO: 2. Member → SignUpResponse 매핑 메서드를 선언하세요.
-    //
-    //         [보안 핵심: password 필드는 절대 DTO에 포함하면 안 됩니다!]
-    //         MapStruct에서 특정 필드를 매핑에서 제외하는 방법:
-    //         @Mapping(target = "password", ignore = true)
-    //
-    //         [SignUpResponse 확인하기]
-    //         현재 SignUpResponse는 username과 message 두 필드만 갖는 record입니다.
-    //         Member에서 username만 가져오고, message는 별도로 설정해야 합니다.
-    //         → @Mapping(target = "message", constant = "회원가입이 완료되었습니다.")  또는
-    //            default 메서드로 직접 구현하는 방법도 있습니다.
-    //
-    //         힌트: SignUpResponse toSignUpResponse(Member member);
+    /**
+     * Member → LoginResponse.UserInfoDto
+     * id, username, name, profileImageUrl 이름이 동일하므로 자동 매핑됩니다.
+     *
+     * [보안 포인트]
+     * Member에는 password 필드가 있지만 UserInfoDto에는 없으므로 MapStruct가 자동으로 무시합니다.
+     */
+    LoginResponse.UserInfoDto toUserInfoDto(Member member);
 
-    // TODO: 위 가이드를 참고하여 메서드를 선언하고 @Mapping 애노테이션을 추가하세요.
-    SignUpResponse toSignUpResponse(Member member);
+    /**
+     * Member → SignUpResponse
+     *
+     * SignUpResponse.message는 Member 엔티티에 없는 필드입니다.
+     * @Mapping(target = "message", constant = "...")으로도 처리할 수 있지만,
+     * AuthConstants 상수를 재사용해 문자열 중복을 방지하기 위해 default 메서드로 구현합니다.
+     */
+    default SignUpResponse toSignUpResponse(Member member) {
+        return new SignUpResponse(member.getUsername(), AuthConstants.SIGNUP_SUCCESS_MESSAGE);
+    }
+
+    /**
+     * Member + AuthTokens → LoginResponse
+     *
+     * LoginResponse는 tokens과 member 두 소스가 필요하므로 MapStruct 자동 생성이 불가합니다.
+     * toUserInfoDto()를 재사용해 중복 없이 조립합니다.
+     */
+    default LoginResponse toLoginResponse(Member member, AuthTokens tokens) {
+        return new LoginResponse(tokens, toUserInfoDto(member));
+    }
 }

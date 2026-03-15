@@ -78,9 +78,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e, HttpServletRequest request) {
-        log.error("Exception : {}", e.getMessage());
+        log.error("Exception : {}", e);
         // 보안을 위해 내부 에러 메시지는 숨기고, "서버 내부 오류"라는 일반적인 메시지를 반환합니다.
-        e.printStackTrace();
 
         return ResponseEntity
                 .internalServerError() // 500 Internal Server Error

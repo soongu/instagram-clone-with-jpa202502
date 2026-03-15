@@ -23,10 +23,5 @@ public record SignUpResponse(
         String username,
         String message
 ) {
-    public static SignUpResponse of(String username, String message) {
-        return SignUpResponse.builder()
-                .username(username)
-                .message(message)
-                .build();
-    }
+
 }
