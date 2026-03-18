@@ -98,6 +98,9 @@ public class FollowService {
         return FollowStatusResponse.of(targetMember.getId(), false, followerCount);
     }
 
+
+    
+
     public FollowListResponse getFollowers(Long loginMemberId, Long memberId) {
         // TODO Day 13 Step 4
         // 1) 특정 유저를 팔로우하는 Follow 목록 조회 (toMember 기준)
@@ -114,5 +117,15 @@ public class FollowService {
         // 3) 로그인 유저(Member) 기준 isFollowing / isMe 계산
         // 4) followers API 와 방향이 왜 반대인지 학생들과 함께 비교
         return FollowListResponse.empty();
+    }
+
+    /**
+     * 로그인 유저가 특정 대상 유저를 팔로우 중인지 여부를 조회한다.
+     */
+    public boolean isFollowing(Member loginMember, Member targetMember) {
+        if (loginMember.getId().equals(targetMember.getId())) {
+            return false;
+        }
+        return followRepository.existsByFromMemberAndToMember(loginMember, targetMember);
     }
 }
