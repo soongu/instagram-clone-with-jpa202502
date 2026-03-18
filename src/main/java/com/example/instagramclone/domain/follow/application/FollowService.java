@@ -3,6 +3,7 @@ package com.example.instagramclone.domain.follow.application;
 import com.example.instagramclone.core.exception.FollowErrorCode;
 import com.example.instagramclone.core.exception.FollowException;
 import com.example.instagramclone.domain.follow.api.FollowListResponse;
+import com.example.instagramclone.domain.follow.api.FollowMemberResponse;
 import com.example.instagramclone.domain.follow.api.FollowStatusResponse;
 import com.example.instagramclone.domain.follow.domain.Follow;
 import com.example.instagramclone.domain.follow.domain.FollowRepository;
@@ -11,6 +12,10 @@ import com.example.instagramclone.domain.member.domain.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +28,7 @@ public class FollowService {
     /**
      * 팔로우 API.
      *
-     * 흐름:
+     * 큰 흐름:
      * 1) 로그인 유저와 대상 유저를 조회한다.
      * 2) 자기 자신을 팔로우하려는지 검사한다.
      * 3) 이미 팔로우 중인지 검사한다.
@@ -43,10 +48,12 @@ public class FollowService {
      */
     @Transactional
     public FollowStatusResponse follow(Long loginMemberId, Long targetMemberId) {
-        // JWT를 통과한 로그인 유저 ID는 신뢰하고, 불필요한 SELECT를 줄이기 위해 프록시로 받는다.
         // fromMember = 로그인 유저(팔로우를 거는 사람)
+        // JWT를 통과한 회원 ID이므로 비교적 신뢰할 수 있어 프록시로 받아 성능을 아낀다.
         Member loginMember = memberService.getReferenceById(loginMemberId);
+
         // toMember = 팔로우 대상 유저(팔로우를 받는 사람)
+        // 클라이언트가 URL로 보내는 값이므로 실제 존재 여부를 즉시 검증한다.
         Member targetMember = memberService.findById(targetMemberId);
 
         // 자기 자신을 팔로우하는 것은 비즈니스 규칙상 허용하지 않는다.
@@ -71,7 +78,7 @@ public class FollowService {
     /**
      * 언팔로우 API.
      *
-     * 흐름:
+     * 큰 흐름:
      * 1) 로그인 유저와 대상 유저를 조회한다.
      * 2) 실제로 팔로우 관계가 존재하는지 확인한다.
      * 3) 있으면 삭제한다.
@@ -83,6 +90,7 @@ public class FollowService {
      */
     @Transactional
     public FollowStatusResponse unfollow(Long loginMemberId, Long targetMemberId) {
+        // 언팔로우도 follow()와 동일한 조회 전략을 사용한다.
         Member loginMember = memberService.getReferenceById(loginMemberId);
         Member targetMember = memberService.findById(targetMemberId);
 
@@ -98,34 +106,103 @@ public class FollowService {
         return FollowStatusResponse.of(targetMember.getId(), false, followerCount);
     }
 
-
-    
-
+    /**
+     * 특정 유저의 팔로워 목록 조회.
+     *
+     * 예:
+     * - B의 프로필에서 "팔로워" 버튼을 눌렀을 때
+     * - B를 팔로우하는 사람들(A, C, D...)을 조회한다.
+     *
+     * 방향:
+     * - toMember   = 프로필 주인(B)
+     * - fromMember = B를 팔로우하는 사람들(A, C, D...)
+     */
     public FollowListResponse getFollowers(Long loginMemberId, Long memberId) {
-        // TODO Day 13 Step 4
-        // 1) 특정 유저를 팔로우하는 Follow 목록 조회 (toMember 기준)
-        // 2) 리스트에 들어갈 Member 엔티티 목록 추출
-        // 3) 로그인 유저(Member)가 그 사람들(List<Member>)을 팔로우 중인지 한 번에 조회
-        // 4) FollowMemberResponse(memberId, username, name, profileImageUrl, isFollowing, isMe) 로 변환
-        return FollowListResponse.empty();
-    }
+        // 조회 대상 프로필 주인이 실제 존재하는지 먼저 확인한다.
+        Member profileOwner = memberService.findById(memberId);
+        // 로그인 유저는 "이 리스트의 각 사람을 내가 팔로우 중인가?"를 계산할 기준이다.
+        Member loginMember = memberService.getReferenceById(loginMemberId);
 
-    public FollowListResponse getFollowings(Long loginMemberId, Long memberId) {
-        // TODO Day 13 Step 4
-        // 1) 특정 유저가 팔로우하고 있는 Follow 목록 조회 (fromMember 기준)
-        // 2) 리스트에 들어갈 Member 엔티티 목록 추출
-        // 3) 로그인 유저(Member) 기준 isFollowing / isMe 계산
-        // 4) followers API 와 방향이 왜 반대인지 학생들과 함께 비교
-        return FollowListResponse.empty();
+        // followers API 에서는 각 Follow 행의 fromMember 쪽이 화면에 뿌릴 대상이다.
+        List<Member> followers = followRepository.findAllByToMember(profileOwner).stream()
+                .map(Follow::getFromMember)
+                .toList();
+
+        return buildFollowListResponse(loginMember, followers);
     }
 
     /**
-     * 로그인 유저가 특정 대상 유저를 팔로우 중인지 여부를 조회한다.
+     * 특정 유저의 팔로잉 목록 조회.
+     *
+     * 예:
+     * - B의 프로필에서 "팔로잉" 버튼을 눌렀을 때
+     * - B가 팔로우하고 있는 사람들(X, Y, Z...)을 조회한다.
+     *
+     * 방향:
+     * - fromMember = 프로필 주인(B)
+     * - toMember   = B가 팔로우하는 사람들(X, Y, Z...)
+     */
+    public FollowListResponse getFollowings(Long loginMemberId, Long memberId) {
+        Member profileOwner = memberService.findById(memberId);
+        Member loginMember = memberService.getReferenceById(loginMemberId);
+
+        // followings API 에서는 각 Follow 행의 toMember 쪽이 화면에 뿌릴 대상이다.
+        List<Member> followings = followRepository.findAllByFromMember(profileOwner).stream()
+                .map(Follow::getToMember)
+                .toList();
+
+        return buildFollowListResponse(loginMember, followings);
+    }
+
+    /**
+     * 로그인 유저가 특정 대상 유저를 팔로우 중인지 여부를 계산한다.
+     *
+     * 이 메서드는 "팔로우 상태만 필요할 때" 재사용한다.
+     * 예: 프로필 헤더의 팔로우 버튼 상태, 검색 결과 카드의 팔로우 버튼 상태.
+     *
+     * 파라미터를 Member 엔티티로 받는 이유:
+     * - 상위 서비스에서 이미 회원을 조회해 둔 경우 그대로 재사용할 수 있다.
+     * - 같은 회원을 findById()로 두 번 조회하는 중복 쿼리를 피할 수 있다.
      */
     public boolean isFollowing(Member loginMember, Member targetMember) {
+        // 자기 자신은 "팔로우 중" 개념을 사용하지 않으므로 false 처리한다.
         if (loginMember.getId().equals(targetMember.getId())) {
             return false;
         }
+
+        // 핵심 쿼리: (로그인 유저 -> 대상 유저) 팔로우 행이 실제로 존재하는지 확인
         return followRepository.existsByFromMemberAndToMember(loginMember, targetMember);
+    }
+
+    /**
+     * 팔로워/팔로잉 목록 응답 공통 조립 메서드.
+     *
+     * 각 대상 유저마다 계산해야 하는 값은 2개다.
+     * - following: 로그인 유저가 이 사람을 팔로우 중인가?
+     * - me: 이 사람이 로그인 유저 자신인가?
+     *
+     * following 을 한 명씩 existsBy...로 조회하면 쿼리가 많아지므로,
+     * 로그인 유저 -> 대상 목록 전체를 한 번에 조회한 뒤 Set으로 바꿔 빠르게 판별한다.
+     */
+    private FollowListResponse buildFollowListResponse(Member loginMember, List<Member> targetMembers) {
+        if (targetMembers.isEmpty()) {
+            return FollowListResponse.empty();
+        }
+
+        // "로그인 유저가 이 목록의 사람들 중 누구를 팔로우 중인가?"를 한 번에 조회한다.
+        Set<Long> followingMemberIds = followRepository.findAllByFromMemberAndToMemberIn(loginMember, targetMembers).stream()
+                .map(follow -> follow.getToMember().getId())
+                .collect(Collectors.toSet());
+
+        // 각 Member를 화면용 DTO로 변환한다.
+        List<FollowMemberResponse> users = targetMembers.stream()
+                .map(targetMember -> FollowMemberResponse.of(
+                        targetMember,
+                        followingMemberIds.contains(targetMember.getId()),
+                        loginMember.getId().equals(targetMember.getId())
+                ))
+                .toList();
+
+        return FollowListResponse.of(users);
     }
 }

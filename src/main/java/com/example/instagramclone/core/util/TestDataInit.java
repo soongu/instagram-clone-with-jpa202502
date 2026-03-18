@@ -1,5 +1,7 @@
 package com.example.instagramclone.core.util;
 
+import com.example.instagramclone.domain.follow.domain.Follow;
+import com.example.instagramclone.domain.follow.domain.FollowRepository;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.domain.MemberRepository;
 import com.example.instagramclone.domain.post.domain.Post;
@@ -13,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -20,6 +23,7 @@ import java.util.List;
 public class TestDataInit implements ApplicationRunner {
 
     private final MemberRepository memberRepository;
+    private final FollowRepository followRepository;
     private final PostRepository postRepository;
     private final PostImageRepository postImageRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,6 +36,7 @@ public class TestDataInit implements ApplicationRunner {
         List<String> usernames = List.of("kuromi", "mamel", "pikachu", "kitty", "heartping");
         List<String> names = List.of("쿠로미", "마이멜로디", "피카츄", "키티", "하츄핑");
         String password = passwordEncoder.encode("abc1234!");
+        List<Member> savedMembers = new ArrayList<>();
 
         for (int i = 0; i < usernames.size(); i++) {
             Member member = Member.builder()
@@ -42,6 +47,7 @@ public class TestDataInit implements ApplicationRunner {
                     .build();
 
             Member savedMember = memberRepository.save(member);
+            savedMembers.add(savedMember);
 
             for (int p = 1; p <= 5; p++) {
                 Post post = Post.builder()
@@ -60,6 +66,40 @@ public class TestDataInit implements ApplicationRunner {
                 }
             }
         }
-        System.out.println("테스트용 계정 5개 및 피드 세팅 완료! (게시물 총 25개)");
+
+        // 팔로우 테스트용 관계망 구성
+        // kuromi -> mamel, pikachu, heartping
+        // mamel -> kuromi, kitty
+        // pikachu -> kuromi, mamel, heartping
+        // kitty -> kuromi, mamel, heartping
+        // heartping -> kitty
+        seedFollowRelations(savedMembers);
+
+        System.out.println("테스트용 계정 5개, 팔로우 관계, 피드 세팅 완료! (게시물 총 25개)");
+    }
+
+    private void seedFollowRelations(List<Member> members) {
+        Member kuromi = members.get(0);
+        Member mamel = members.get(1);
+        Member pikachu = members.get(2);
+        Member kitty = members.get(3);
+        Member heartping = members.get(4);
+
+        followRepository.save(Follow.create(kuromi, mamel));
+        followRepository.save(Follow.create(kuromi, pikachu));
+        followRepository.save(Follow.create(kuromi, heartping));
+
+        followRepository.save(Follow.create(mamel, kuromi));
+        followRepository.save(Follow.create(mamel, kitty));
+
+        followRepository.save(Follow.create(pikachu, kuromi));
+        followRepository.save(Follow.create(pikachu, mamel));
+        followRepository.save(Follow.create(pikachu, heartping));
+
+        followRepository.save(Follow.create(kitty, kuromi));
+        followRepository.save(Follow.create(kitty, mamel));
+        followRepository.save(Follow.create(kitty, heartping));
+
+        followRepository.save(Follow.create(heartping, kitty));
     }
 }

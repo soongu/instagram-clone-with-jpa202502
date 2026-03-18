@@ -17,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +32,7 @@ import static org.mockito.Mockito.never;
  * [테스트 범위]
  * - follow(): 자기 자신 팔로우 금지, 중복 팔로우 방지, 저장 및 followerCount 반환
  * - unfollow(): 관계 미존재 예외, 삭제 및 followerCount 반환
+ * - getFollowers()/getFollowings(): 리스트 조회 시 following / me 계산
  */
 @ExtendWith(MockitoExtension.class)
 class FollowServiceTest {
@@ -166,6 +169,97 @@ class FollowServiceTest {
 
             then(followRepository).should().deleteByFromMemberAndToMember(loginMember, targetMember);
             then(followRepository).should().countByToMember(targetMember);
+        }
+    }
+
+    @Nested
+    @DisplayName("getFollowers()")
+    class GetFollowers {
+
+        @Test
+        @DisplayName("성공 - 팔로워 목록을 FollowMemberResponse로 변환하고 following / me 를 함께 계산")
+        void success_builds_followers_response() {
+            Long loginMemberId = 1L;
+            Long memberId = 2L;
+            Member loginMember = buildMockMember(loginMemberId, "me");
+            Member profileOwner = buildMockMember(memberId, "target");
+            Member followerA = buildMockMember(3L, "followerA");
+
+            Follow followerAtoOwner = Follow.create(followerA, profileOwner);
+            Follow meToOwner = Follow.create(loginMember, profileOwner);
+            Follow meToFollowerA = Follow.create(loginMember, followerA);
+
+            given(memberService.findById(memberId)).willReturn(profileOwner);
+            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
+            given(followRepository.findAllByToMember(profileOwner)).willReturn(List.of(followerAtoOwner, meToOwner));
+            given(followRepository.findAllByFromMemberAndToMemberIn(loginMember, List.of(followerA, loginMember)))
+                    .willReturn(List.of(meToFollowerA));
+
+            var response = followService.getFollowers(loginMemberId, memberId);
+
+            assertThat(response.users()).hasSize(2);
+            assertThat(response.users().get(0).memberId()).isEqualTo(3L);
+            assertThat(response.users().get(0).following()).isTrue();
+            assertThat(response.users().get(0).me()).isFalse();
+
+            assertThat(response.users().get(1).memberId()).isEqualTo(1L);
+            assertThat(response.users().get(1).following()).isFalse();
+            assertThat(response.users().get(1).me()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("getFollowings()")
+    class GetFollowings {
+
+        @Test
+        @DisplayName("성공 - 팔로잉 목록을 FollowMemberResponse로 변환하고 following / me 를 함께 계산")
+        void success_builds_followings_response() {
+            Long loginMemberId = 1L;
+            Long memberId = 2L;
+            Member loginMember = buildMockMember(loginMemberId, "me");
+            Member profileOwner = buildMockMember(memberId, "target");
+            Member followedA = buildMockMember(3L, "followedA");
+
+            Follow ownerToMe = Follow.create(profileOwner, loginMember);
+            Follow ownerToFollowedA = Follow.create(profileOwner, followedA);
+            Follow meToFollowedA = Follow.create(loginMember, followedA);
+
+            given(memberService.findById(memberId)).willReturn(profileOwner);
+            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
+            given(followRepository.findAllByFromMember(profileOwner)).willReturn(List.of(ownerToMe, ownerToFollowedA));
+            given(followRepository.findAllByFromMemberAndToMemberIn(loginMember, List.of(loginMember, followedA)))
+                    .willReturn(List.of(meToFollowedA));
+
+            var response = followService.getFollowings(loginMemberId, memberId);
+
+            assertThat(response.users()).hasSize(2);
+            assertThat(response.users().get(0).memberId()).isEqualTo(1L);
+            assertThat(response.users().get(0).following()).isFalse();
+            assertThat(response.users().get(0).me()).isTrue();
+
+            assertThat(response.users().get(1).memberId()).isEqualTo(3L);
+            assertThat(response.users().get(1).following()).isTrue();
+            assertThat(response.users().get(1).me()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("isFollowing()")
+    class IsFollowing {
+
+        @Test
+        @DisplayName("성공 - 이미 조회한 두 Member 엔티티만으로 팔로우 여부를 계산한다")
+        void success_uses_loaded_members_without_member_service_call() {
+            Member loginMember = buildMockMember(1L, "me");
+            Member targetMember = buildMockMember(2L, "target");
+
+            given(followRepository.existsByFromMemberAndToMember(loginMember, targetMember)).willReturn(true);
+
+            boolean result = followService.isFollowing(loginMember, targetMember);
+
+            assertThat(result).isTrue();
+            then(memberService).shouldHaveNoInteractions();
         }
     }
 }
