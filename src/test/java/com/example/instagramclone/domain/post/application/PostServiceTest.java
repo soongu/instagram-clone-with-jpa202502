@@ -1,6 +1,8 @@
 package com.example.instagramclone.domain.post.application;
 
 import com.example.instagramclone.core.common.dto.SliceResponse;
+import com.example.instagramclone.core.exception.PostErrorCode;
+import com.example.instagramclone.core.exception.PostException;
 import com.example.instagramclone.core.util.FileStore;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
@@ -12,6 +14,8 @@ import com.example.instagramclone.domain.post.domain.PostImage;
 import com.example.instagramclone.domain.post.domain.PostImageRepository;
 import com.example.instagramclone.domain.post.domain.PostRepository;
 import com.example.instagramclone.domain.post.infrastructure.PostFeedRow;
+import com.example.instagramclone.domain.post.infrastructure.PostMapper;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -64,6 +69,14 @@ class PostServiceTest {
 
     @Mock
     private FileStore fileStore;
+
+    /**
+     * PostMapper는 default 메서드(toResponse, toProfilePostResponse)와
+     * MapStruct가 생성한 구현(toImageResponses)을 함께 사용하므로,
+     * 단순 Mock이 아니라 실제 구현체를 Spy로 주입한다.
+     */
+    @Spy
+    private PostMapper postMapper = Mappers.getMapper(PostMapper.class);
 
     // ============================================================
     // 테스트 픽스처 (Helper)
@@ -202,7 +215,7 @@ class PostServiceTest {
         }
 
         @Test
-        @DisplayName("실패 - fileStore.storeFile() IOException 발생 시 RuntimeException으로 래핑")
+        @DisplayName("실패 - fileStore.storeFile() IOException 발생 시 PostException(FILE_UPLOAD_ERROR)로 래핑")
         void fail_fileStore_throws_IOException_is_wrapped() throws IOException {
             PostCreateRequest request = new PostCreateRequest("내용");
             Member writer = buildMockMember(1L, "testuser");
@@ -214,8 +227,8 @@ class PostServiceTest {
             given(fileStore.storeFile(mockFile)).willThrow(new IOException("디스크 쓰기 실패"));
 
             assertThatThrownBy(() -> postService.create(request, List.of(mockFile), 1L))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("피드 이미지 저장 중 오류가 발생했습니다.")
+                    .isInstanceOf(PostException.class)
+                    .hasMessage(PostErrorCode.FILE_UPLOAD_ERROR.getMessage())
                     .hasCauseInstanceOf(IOException.class);
         }
 

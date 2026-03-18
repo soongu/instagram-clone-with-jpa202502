@@ -1,6 +1,8 @@
 package com.example.instagramclone.domain.post.application;
 
 import com.example.instagramclone.core.common.dto.SliceResponse;
+import com.example.instagramclone.core.exception.PostErrorCode;
+import com.example.instagramclone.core.exception.PostException;
 import com.example.instagramclone.core.util.FileStore;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
@@ -76,7 +78,7 @@ public class PostService {
                                     .imgOrder(i + 1)
                                     .build();
                         } catch (IOException e) {
-                            throw new RuntimeException("이미지 저장 중 오류 발생", e);
+                            throw new PostException(PostErrorCode.FILE_UPLOAD_ERROR, e);
                         }
                     })
                     .toList();
