@@ -1,6 +1,6 @@
 package com.example.instagramclone.domain.post.application;
 
-import com.example.instagramclone.core.common.dto.FeedResponse;
+import com.example.instagramclone.core.common.dto.SliceResponse;
 import com.example.instagramclone.core.util.FileStore;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
@@ -250,9 +250,9 @@ class PostServiceTest {
             Slice<PostFeedRow> emptySlice = new SliceImpl<>(Collections.emptyList(), pageable, false);
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(emptySlice);
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
-            assertThat(response.feedList()).isEmpty();
+            assertThat(response.items()).isEmpty();
             assertThat(response.hasNext()).isFalse();
             then(postImageRepository).shouldHaveNoInteractions();
         }
@@ -268,10 +268,10 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(Collections.emptyList());
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
-            assertThat(response.feedList()).hasSize(1);
-            assertThat(response.feedList().get(0).images()).isEmpty();
+            assertThat(response.items()).hasSize(1);
+            assertThat(response.items().get(0).images()).isEmpty();
         }
 
         @Test
@@ -293,9 +293,9 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(Collections.emptyList());
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
-            PostResponse postResponse = response.feedList().get(0);
+            PostResponse postResponse = response.items().get(0);
             assertThat(postResponse.id()).isEqualTo(100L);
             assertThat(postResponse.content()).isEqualTo("매핑 테스트 내용");
             assertThat(postResponse.username()).isEqualTo("mapped_user");
@@ -317,9 +317,9 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(List.of(image3, image1, image2));
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
-            List<PostImageResponse> images = response.feedList().get(0).images();
+            List<PostImageResponse> images = response.items().get(0).images();
             assertThat(images).extracting(PostImageResponse::imageOrder).containsExactly(1, 2, 3);
             assertThat(images).extracting(PostImageResponse::imageUrl)
                     .containsExactly("/img/1.jpg", "/img/2.jpg", "/img/3.jpg");
@@ -343,15 +343,15 @@ class PostServiceTest {
             given(postImageRepository.findByPostIn(List.of(post1, post2)))
                     .willReturn(List.of(imgA, imgB, imgC));
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
-            assertThat(response.feedList()).hasSize(2);
-            assertThat(response.feedList().get(0).images()).hasSize(1);
-            assertThat(response.feedList().get(1).images()).hasSize(2);
+            assertThat(response.items()).hasSize(2);
+            assertThat(response.items().get(0).images()).hasSize(1);
+            assertThat(response.items().get(1).images()).hasSize(2);
         }
 
         @Test
-        @DisplayName("성공 - Slice의 hasNext가 true이면 FeedResponse.hasNext도 true")
+        @DisplayName("성공 - Slice의 hasNext가 true이면 SliceResponse.hasNext도 true")
         void hasNext_propagated_from_slice() {
             Pageable pageable = PageRequest.of(0, 2);
             Member writer = buildMockMember(1L, "user");
@@ -363,13 +363,13 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(sliceWithNext);
             given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
             assertThat(response.hasNext()).isTrue();
         }
 
         @Test
-        @DisplayName("성공 - Slice의 hasNext가 false이면 FeedResponse.hasNext도 false")
+        @DisplayName("성공 - Slice의 hasNext가 false이면 SliceResponse.hasNext도 false")
         void hasNext_false_propagated_from_slice() {
             Pageable pageable = PageRequest.of(0, 10);
             Member writer = buildMockMember(1L, "user");
@@ -379,7 +379,7 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(lastSlice);
             given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
             assertThat(response.hasNext()).isFalse();
         }
@@ -398,10 +398,10 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, loginId)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post1, post2))).willReturn(Collections.emptyList());
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, loginId);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, loginId);
 
-            assertThat(response.feedList().get(0).likeStatus().liked()).isFalse();
-            assertThat(response.feedList().get(1).likeStatus().liked()).isTrue();
+            assertThat(response.items().get(0).likeStatus().liked()).isFalse();
+            assertThat(response.items().get(1).likeStatus().liked()).isTrue();
             then(postRepository).should().findFeedWithLiked(pageable, loginId);
         }
 
@@ -417,9 +417,9 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
 
-            FeedResponse<PostResponse> response = postService.getFeed(pageable, 1L);
+            SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
-            PostResponse postResponse = response.feedList().get(0);
+            PostResponse postResponse = response.items().get(0);
             assertThat(postResponse.likeStatus().liked()).isTrue();
             assertThat(postResponse.likeStatus().likeCount()).isEqualTo(42);
             assertThat(postResponse.commentCount()).isZero();

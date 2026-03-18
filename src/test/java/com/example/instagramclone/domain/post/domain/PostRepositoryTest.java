@@ -2,6 +2,7 @@ package com.example.instagramclone.domain.post.domain;
 
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.domain.MemberRepository;
+import com.example.instagramclone.infrastructure.persistence.QueryDslConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -9,10 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -23,11 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * [테스트 범위]
  * - PostRepository.save(): 기본 저장 및 writer 연관관계
- * - PostRepository.findAllWithImages(): JOIN FETCH writer 쿼리, 페이징
+ * - PostRepository.findAllByWriterId(): 특정 작성자 게시글 조회, 최신순 페이징
  * - PostImageRepository.findByPostIn(): IN 쿼리 그룹 조회, 다른 게시물 이미지 미포함
  * - PostImageRepository: 기본 저장 및 연관관계
  */
 @DataJpaTest
+@Import(QueryDslConfig.class)
 class PostRepositoryTest {
 
     @Autowired
@@ -93,36 +95,46 @@ class PostRepositoryTest {
     }
 
     // ============================================================
-    // PostRepository.findAllWithImages()
+    // PostRepository.findAllByWriterId()
     // ============================================================
 
     @Nested
-    @DisplayName("PostRepository.findAllWithImages()")
-    class FindAllWithImages {
+    @DisplayName("PostRepository.findAllByWriterId()")
+    class FindAllByWriterId {
 
         @Test
         @DisplayName("게시물이 없으면 빈 Slice 반환")
         void returns_empty_slice_when_no_posts() {
-            Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id"));
-            Slice<Post> result = postRepository.findAllWithImages(pageable);
+            Pageable pageable = PageRequest.of(0, 10);
+            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).isEmpty();
             assertThat(result.hasNext()).isFalse();
         }
 
         @Test
-        @DisplayName("게시물 조회 시 writer가 LAZY 없이 즉시 로딩된다 (JOIN FETCH 검증)")
-        void returns_posts_with_writer_eagerly_loaded() {
-            postRepository.save(Post.builder().content("글1").writer(savedMember).build());
+        @DisplayName("특정 writerId로 조회하면 그 작성자의 글만 최신순으로 반환")
+        void returns_only_posts_of_target_writer_in_desc_order() {
+            Member otherMember = memberRepository.save(Member.builder()
+                    .username("other")
+                    .password("encoded_pw")
+                    .email("other@test.com")
+                    .name("다른 작성자")
+                    .build());
+
+            Post oldPost = postRepository.save(Post.builder().content("내 첫 글").writer(savedMember).build());
+            Post newPost = postRepository.save(Post.builder().content("내 최신 글").writer(savedMember).build());
+            postRepository.save(Post.builder().content("남의 글").writer(otherMember).build());
             entityManager.flush();
-            entityManager.clear(); // 1차 캐시 제거 후 실제 쿼리 발생
+            entityManager.clear();
 
-            Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id"));
-            Slice<Post> result = postRepository.findAllWithImages(pageable);
+            Pageable pageable = PageRequest.of(0, 10);
+            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
-            assertThat(result.getContent()).hasSize(1);
-            // 영속성 컨텍스트가 clear된 상태에서 LazyInitializationException 없이 접근 가능한지 검증
-            assertThat(result.getContent().get(0).getWriter().getUsername()).isEqualTo("writer");
+            assertThat(result.getContent()).hasSize(2);
+            assertThat(result.getContent()).extracting(Post::getId)
+                    .containsExactly(newPost.getId(), oldPost.getId());
+            assertThat(result.getContent()).allMatch(post -> post.getWriter().getId().equals(savedMember.getId()));
         }
 
         @Test
@@ -133,8 +145,8 @@ class PostRepositoryTest {
             postRepository.save(Post.builder().content("글3").writer(savedMember).build());
             entityManager.flush();
 
-            Pageable pageable = PageRequest.of(0, 2, Sort.by(Sort.Direction.DESC, "id"));
-            Slice<Post> result = postRepository.findAllWithImages(pageable);
+            Pageable pageable = PageRequest.of(0, 2);
+            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(2);
             assertThat(result.hasNext()).isTrue();
@@ -146,8 +158,8 @@ class PostRepositoryTest {
             postRepository.save(Post.builder().content("유일한 글").writer(savedMember).build());
             entityManager.flush();
 
-            Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "id"));
-            Slice<Post> result = postRepository.findAllWithImages(pageable);
+            Pageable pageable = PageRequest.of(0, 10);
+            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.hasNext()).isFalse();
