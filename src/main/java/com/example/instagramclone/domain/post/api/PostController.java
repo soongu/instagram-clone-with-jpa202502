@@ -1,7 +1,7 @@
 package com.example.instagramclone.domain.post.api;
 
 import com.example.instagramclone.core.common.dto.ApiResponse;
-import com.example.instagramclone.core.common.dto.FeedResponse;
+import com.example.instagramclone.core.common.dto.SliceResponse;
 import com.example.instagramclone.core.util.PageableUtil;
 import com.example.instagramclone.infrastructure.security.annotation.LoginUser;
 import com.example.instagramclone.domain.post.application.PostLikeService;
@@ -41,7 +41,7 @@ public class PostController {
     }
 
     @GetMapping("/api/posts")
-    public ResponseEntity<ApiResponse<FeedResponse<PostResponse>>> getFeed(
+    public ResponseEntity<ApiResponse<SliceResponse<PostResponse>>> getFeed(
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "5") int size,
             // 인증 데이터가 필요 없는 Public 피드일 경우 LoginUserArgumentResolver가 null을 반환하도록 설계했습니다.
@@ -50,21 +50,21 @@ public class PostController {
         // 파라미터 검증 및 Pageable 생성 (관심사 분리)
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
 
-        FeedResponse<PostResponse> response = postService.getFeed(pageable, loginUser.id());
+        SliceResponse<PostResponse> response = postService.getFeed(pageable, loginUser.id());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // URL이 /members/...로 시작하지만, 반환 리소스가 Post이므로 PostController에서 처리합니다.
     @GetMapping("/api/members/{memberId}/posts")
-    public ResponseEntity<ApiResponse<FeedResponse<ProfilePostResponse>>> getMemberPosts(
+    public ResponseEntity<ApiResponse<SliceResponse<ProfilePostResponse>>> getMemberPosts(
             @PathVariable Long memberId,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "12") int size) {
 
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
 
-        FeedResponse<ProfilePostResponse> response = postService.getMemberPosts(memberId, pageable);
+        SliceResponse<ProfilePostResponse> response = postService.getMemberPosts(memberId, pageable);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
