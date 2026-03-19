@@ -15,10 +15,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -125,17 +121,11 @@ public class FollowService {
      */
     public SliceResponse<FollowMemberResponse> getFollowers(Long loginMemberId, Long memberId, Pageable pageable) {
         // 조회 대상 프로필 주인이 실제 존재하는지 먼저 확인한다.
-        Member profileOwner = memberService.findById(memberId);
-        // 로그인 유저는 "이 리스트의 각 사람을 내가 팔로우 중인가?"를 계산할 기준이다.
-        Member loginMember = memberService.getReferenceById(loginMemberId);
+        memberService.findById(memberId);
 
-        // followers API 에서는 각 Follow 행의 fromMember 쪽이 화면에 뿌릴 대상이다.
-        Slice<Follow> followerSlice = followRepository.findAllByToMember(profileOwner, pageable);
-        List<Member> followers = followerSlice.getContent().stream()
-                .map(Follow::getFromMember)
-                .toList();
-
-        return buildFollowListResponse(loginMember, followers, followerSlice.hasNext());
+        // 과제 2: QueryDSL projection으로 following / me를 select 절에서 한 번에 계산한다.
+        Slice<FollowMemberResponse> followerSlice = followRepository.findFollowersWithStatus(memberId, loginMemberId, pageable);
+        return SliceResponse.of(followerSlice.hasNext(), followerSlice.getContent());
     }
 
     /**
@@ -154,16 +144,11 @@ public class FollowService {
      * - 즉, 프로필 주인이 "가장 최근에 팔로우한 사람"이 리스트 맨 위에 온다.
      */
     public SliceResponse<FollowMemberResponse> getFollowings(Long loginMemberId, Long memberId, Pageable pageable) {
-        Member profileOwner = memberService.findById(memberId);
-        Member loginMember = memberService.getReferenceById(loginMemberId);
+        memberService.findById(memberId);
 
-        // followings API 에서는 각 Follow 행의 toMember 쪽이 화면에 뿌릴 대상이다.
-        Slice<Follow> followingSlice = followRepository.findAllByFromMember(profileOwner, pageable);
-        List<Member> followings = followingSlice.getContent().stream()
-                .map(Follow::getToMember)
-                .toList();
-
-        return buildFollowListResponse(loginMember, followings, followingSlice.hasNext());
+        // 과제 2: QueryDSL projection으로 following / me를 select 절에서 한 번에 계산한다.
+        Slice<FollowMemberResponse> followingSlice = followRepository.findFollowingsWithStatus(memberId, loginMemberId, pageable);
+        return SliceResponse.of(followingSlice.hasNext(), followingSlice.getContent());
     }
 
     /**
@@ -186,35 +171,4 @@ public class FollowService {
         return followRepository.existsByFromMemberAndToMember(loginMember, targetMember);
     }
 
-    /**
-     * 팔로워/팔로잉 목록 응답 공통 조립 메서드.
-     * <p>
-     * 각 대상 유저마다 계산해야 하는 값은 2개다.
-     * - following: 로그인 유저가 이 사람을 팔로우 중인가?
-     * - me: 이 사람이 로그인 유저 자신인가?
-     * <p>
-     * following 을 한 명씩 existsBy...로 조회하면 쿼리가 많아지므로,
-     * 로그인 유저 -> 대상 목록 전체를 한 번에 조회한 뒤 Set으로 바꿔 빠르게 판별한다.
-     */
-    private SliceResponse<FollowMemberResponse> buildFollowListResponse(Member loginMember, List<Member> targetMembers, boolean hasNext) {
-        if (targetMembers.isEmpty()) {
-            return SliceResponse.of(hasNext, List.of());
-        }
-
-        // "로그인 유저가 이 목록의 사람들 중 누구를 팔로우 중인가?"를 한 번에 조회한다.
-        Set<Long> followingMemberIds = followRepository.findAllByFromMemberAndToMemberIn(loginMember, targetMembers).stream()
-                .map(follow -> follow.getToMember().getId())
-                .collect(Collectors.toSet());
-
-        // 각 Member를 화면용 DTO로 변환한다.
-        List<FollowMemberResponse> users = targetMembers.stream()
-                .map(targetMember -> FollowMemberResponse.of(
-                        targetMember,
-                        followingMemberIds.contains(targetMember.getId()),
-                        loginMember.getId().equals(targetMember.getId())
-                ))
-                .toList();
-
-        return SliceResponse.of(hasNext, users);
-    }
 }

@@ -2,6 +2,7 @@ package com.example.instagramclone.domain.follow.application;
 
 import com.example.instagramclone.core.exception.FollowErrorCode;
 import com.example.instagramclone.core.exception.FollowException;
+import com.example.instagramclone.domain.follow.api.FollowMemberResponse;
 import com.example.instagramclone.domain.follow.api.FollowStatusResponse;
 import com.example.instagramclone.domain.follow.domain.Follow;
 import com.example.instagramclone.domain.follow.domain.FollowRepository;
@@ -35,7 +36,7 @@ import static org.mockito.Mockito.never;
  * [테스트 범위]
  * - follow(): 자기 자신 팔로우 금지, 중복 팔로우 방지, 저장 및 followerCount 반환
  * - unfollow(): 관계 미존재 예외, 삭제 및 followerCount 반환
- * - getFollowers()/getFollowings(): 리스트 조회 시 following / me 계산
+ * - getFollowers()/getFollowings(): QueryDSL projection 결과를 SliceResponse로 반환
  */
 @ExtendWith(MockitoExtension.class)
 class FollowServiceTest {
@@ -185,20 +186,13 @@ class FollowServiceTest {
             Long loginMemberId = 1L;
             Long memberId = 2L;
             Pageable pageable = PageRequest.of(0, 2);
-            Member loginMember = buildMockMember(loginMemberId, "me");
             Member profileOwner = buildMockMember(memberId, "target");
-            Member followerA = buildMockMember(3L, "followerA");
-
-            Follow followerAtoOwner = Follow.create(followerA, profileOwner);
-            Follow meToOwner = Follow.create(loginMember, profileOwner);
-            Follow meToFollowerA = Follow.create(loginMember, followerA);
+            FollowMemberResponse followerA = new FollowMemberResponse(3L, "followerA", "팔로워A", "/profiles/followerA.jpg", true, false);
+            FollowMemberResponse me = new FollowMemberResponse(1L, "me", "나", "/profiles/me.jpg", false, true);
 
             given(memberService.findById(memberId)).willReturn(profileOwner);
-            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
-            given(followRepository.findAllByToMember(profileOwner, pageable))
-                    .willReturn(new SliceImpl<>(List.of(followerAtoOwner, meToOwner), pageable, true));
-            given(followRepository.findAllByFromMemberAndToMemberIn(loginMember, List.of(followerA, loginMember)))
-                    .willReturn(List.of(meToFollowerA));
+            given(followRepository.findFollowersWithStatus(memberId, loginMemberId, pageable))
+                    .willReturn(new SliceImpl<>(List.of(followerA, me), pageable, true));
 
             var response = followService.getFollowers(loginMemberId, memberId, pageable);
 
@@ -211,6 +205,9 @@ class FollowServiceTest {
             assertThat(response.items().get(1).memberId()).isEqualTo(1L);
             assertThat(response.items().get(1).following()).isFalse();
             assertThat(response.items().get(1).me()).isTrue();
+
+            then(memberService).should().findById(memberId);
+            then(memberService).shouldHaveNoMoreInteractions();
         }
     }
 
@@ -224,20 +221,13 @@ class FollowServiceTest {
             Long loginMemberId = 1L;
             Long memberId = 2L;
             Pageable pageable = PageRequest.of(0, 2);
-            Member loginMember = buildMockMember(loginMemberId, "me");
             Member profileOwner = buildMockMember(memberId, "target");
-            Member followedA = buildMockMember(3L, "followedA");
-
-            Follow ownerToMe = Follow.create(profileOwner, loginMember);
-            Follow ownerToFollowedA = Follow.create(profileOwner, followedA);
-            Follow meToFollowedA = Follow.create(loginMember, followedA);
+            FollowMemberResponse me = new FollowMemberResponse(1L, "me", "나", "/profiles/me.jpg", false, true);
+            FollowMemberResponse followedA = new FollowMemberResponse(3L, "followedA", "팔로잉A", "/profiles/followedA.jpg", true, false);
 
             given(memberService.findById(memberId)).willReturn(profileOwner);
-            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
-            given(followRepository.findAllByFromMember(profileOwner, pageable))
-                    .willReturn(new SliceImpl<>(List.of(ownerToMe, ownerToFollowedA), pageable, false));
-            given(followRepository.findAllByFromMemberAndToMemberIn(loginMember, List.of(loginMember, followedA)))
-                    .willReturn(List.of(meToFollowedA));
+            given(followRepository.findFollowingsWithStatus(memberId, loginMemberId, pageable))
+                    .willReturn(new SliceImpl<>(List.of(me, followedA), pageable, false));
 
             var response = followService.getFollowings(loginMemberId, memberId, pageable);
 
@@ -250,6 +240,9 @@ class FollowServiceTest {
             assertThat(response.items().get(1).memberId()).isEqualTo(3L);
             assertThat(response.items().get(1).following()).isTrue();
             assertThat(response.items().get(1).me()).isFalse();
+
+            then(memberService).should().findById(memberId);
+            then(memberService).shouldHaveNoMoreInteractions();
         }
     }
 
