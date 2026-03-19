@@ -35,6 +35,7 @@ import static org.mockito.Mockito.never;
  * - createMember(): 중복 검증 순서, 조기 종료, 필드 매핑, 비밀번호 암호화
  * - findByLoginId(): 이메일/전화번호/username 분기, 미존재 시 동일 예외(사용자 열거 방지)
  * - findById(): 정상 조회, 미존재 예외
+ * - findByUsername(): username 기반 프로필 진입용 조회
  * - checkDuplicate(): 6가지 조합(3타입 × 존재/미존재), 잘못된 타입
  * - getReferenceById(): Repository 위임 검증
  */
@@ -393,6 +394,32 @@ class MemberServiceTest {
             given(memberRepository.findById(999L)).willReturn(Optional.empty());
 
             assertThatThrownBy(() -> memberService.findById(999L))
+                    .isInstanceOf(MemberException.class)
+                    .hasMessage(MemberErrorCode.MEMBER_NOT_FOUND.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("findByUsername()")
+    class FindByUsername {
+
+        @Test
+        @DisplayName("성공 - 존재하는 username으로 조회 시 Member 반환")
+        void success() {
+            Member mockMember = buildMockMember(1L, "target_user");
+            given(memberRepository.findByUsername("target_user")).willReturn(Optional.of(mockMember));
+
+            Member result = memberService.findByUsername("target_user");
+
+            assertThat(result.getUsername()).isEqualTo("target_user");
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 username → MEMBER_NOT_FOUND 예외")
+        void fail_member_not_found() {
+            given(memberRepository.findByUsername("ghost_user")).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> memberService.findByUsername("ghost_user"))
                     .isInstanceOf(MemberException.class)
                     .hasMessage(MemberErrorCode.MEMBER_NOT_FOUND.getMessage());
         }

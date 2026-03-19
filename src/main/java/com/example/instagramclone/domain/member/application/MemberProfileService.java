@@ -25,18 +25,24 @@ public class MemberProfileService {
     /**
      * 특정 회원의 프로필 1건 조회.
      *
-     * - targetMember: 실제 존재 여부를 검증해야 하므로 findById()
+     * - targetMember: 실제 존재 여부를 검증해야 하므로 findByUsername()
      * - isFollowing 계산은 follow 도메인 서비스에 위임
      * - isCurrentUser 값을 함께 내려줘 클라이언트가 "내 프로필인지" 즉시 판단할 수 있게 한다.
      */
-    public MemberProfileResponse getProfile(Long loginMemberId, Long memberId) {
-        boolean isCurrentUser = loginMemberId.equals(memberId);
+    public MemberProfileResponse getProfileByUsername(Long loginMemberId, String username) {
+        // 1. 프로필 주인(타겟)의 정보를 DB에서 가져옵니다. (진짜 존재하는지 검증 필요)
+        Member targetMember = memberService.findByUsername(username);
+		    
+        // 2. 이 프로필이 '나'의 프로필인지 즉시 계산합니다.
+        boolean isCurrentUser = loginMemberId.equals(targetMember.getId());
         
-        Member targetMember = memberService.findById(memberId);
+        // 3. 로그인 유저는 ID를 이미 신뢰할 수 있으므로 DB 조회 없이 가짜 객체(프록시)만 가져와 성능을 아낍니다.
         Member loginMember = memberService.getReferenceById(loginMemberId);
-
-        boolean isFollowing = followService.isFollowing(loginMember, targetMember);
         
+        // 4. "로그인 유저가 이 사람을 팔로우 중인가?" -> FollowService에게 두 엔티티를 넘겨 물어봅니다!
+        boolean isFollowing = followService.isFollowing(loginMember, targetMember);
+
+        // 5. 완성된 DTO를 반환합니다.
         return MemberProfileResponse.of(targetMember, isFollowing, isCurrentUser);
     }
 }

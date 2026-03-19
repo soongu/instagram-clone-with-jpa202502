@@ -80,6 +80,17 @@ public class MemberService {
     }
 
     /**
+     * username 기반 회원 조회
+     *
+     * 프론트 라우트가 /:username 형태일 때
+     * 프로필 페이지 진입용 API에서 사용한다.
+     */
+    public Member findByUsername(String username) {
+        return memberRepository.findByUsername(username)
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+    }
+
+    /**
      * 중복 여부 체크 (회원가입 폼 실시간 검증용)
      */
     public boolean checkDuplicate(String type, String value) {

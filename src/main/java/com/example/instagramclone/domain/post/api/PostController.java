@@ -55,16 +55,21 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // URL이 /members/...로 시작하지만, 반환 리소스가 Post이므로 PostController에서 처리합니다.
-    @GetMapping("/api/members/{memberId}/posts")
-    public ResponseEntity<ApiResponse<SliceResponse<ProfilePostResponse>>> getMemberPosts(
-            @PathVariable Long memberId,
+
+    /**
+     * username 기반 프로필 게시글 목록 조회.
+     *
+     * 프론트 라우트가 /:username 이므로 프로필 진입 시 바로 사용하기 좋다.
+     */
+    @GetMapping("/api/profiles/{username}/posts")
+    public ResponseEntity<ApiResponse<SliceResponse<ProfilePostResponse>>> getProfilePostsByUsername(
+            @PathVariable String username,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "12") int size) {
 
         Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
 
-        SliceResponse<ProfilePostResponse> response = postService.getMemberPosts(memberId, pageable);
+        SliceResponse<ProfilePostResponse> response = postService.getMemberPostsByUsername(username, pageable);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }

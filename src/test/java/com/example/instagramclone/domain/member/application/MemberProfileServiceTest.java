@@ -41,8 +41,8 @@ class MemberProfileServiceTest {
     }
 
     @Nested
-    @DisplayName("getProfile()")
-    class GetProfile {
+    @DisplayName("getProfileByUsername()")
+    class GetProfileByUsername {
 
         @Test
         @DisplayName("성공 - 자기 자신의 프로필이면 isFollowing=false, isCurrentUser=true")
@@ -50,11 +50,11 @@ class MemberProfileServiceTest {
             Member loginMember = buildMockMember(1L, "me");
             Member me = buildMockMember(1L, "me");
 
-            given(memberService.findById(1L)).willReturn(me);
+            given(memberService.findByUsername("me")).willReturn(me);
             given(memberService.getReferenceById(1L)).willReturn(loginMember);
             given(followService.isFollowing(loginMember, me)).willReturn(false);
 
-            MemberProfileResponse response = memberProfileService.getProfile(loginMember.getId(), 1L);
+            MemberProfileResponse response = memberProfileService.getProfileByUsername(loginMember.getId(), "me");
 
             assertThat(response.memberId()).isEqualTo(1L);
             assertThat(response.username()).isEqualTo("me");
@@ -67,22 +67,40 @@ class MemberProfileServiceTest {
         void success_other_profile_uses_follow_service() {
             Long loginMemberId = 1L;
             Member loginMember = buildMockMember(loginMemberId, "me");
-            Long memberId = 2L;
-            Member targetMember = buildMockMember(memberId, "target");
+            Member targetMember = buildMockMember(2L, "target");
 
-            given(memberService.findById(memberId)).willReturn(targetMember);
+            given(memberService.findByUsername("target")).willReturn(targetMember);
             given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
             given(followService.isFollowing(loginMember, targetMember)).willReturn(true);
 
-            MemberProfileResponse response = memberProfileService.getProfile(loginMemberId, memberId);
+            MemberProfileResponse response = memberProfileService.getProfileByUsername(loginMemberId, "target");
 
-            assertThat(response.memberId()).isEqualTo(memberId);
+            assertThat(response.memberId()).isEqualTo(2L);
             assertThat(response.username()).isEqualTo("target");
             assertThat(response.profileImageUrl()).isEqualTo("/profiles/target.jpg");
             assertThat(response.isFollowing()).isTrue();
             assertThat(response.isCurrentUser()).isFalse();
 
             then(followService).should().isFollowing(loginMember, targetMember);
+        }
+
+        @Test
+        @DisplayName("성공 - username 기반으로 프로필 헤더를 조회한다")
+        void success_profile_header_by_username() {
+            Long loginMemberId = 1L;
+            Member loginMember = buildMockMember(loginMemberId, "me");
+            Member targetMember = buildMockMember(2L, "target");
+
+            given(memberService.findByUsername("target")).willReturn(targetMember);
+            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
+            given(followService.isFollowing(loginMember, targetMember)).willReturn(true);
+
+            MemberProfileResponse response = memberProfileService.getProfileByUsername(loginMemberId, "target");
+
+            assertThat(response.memberId()).isEqualTo(2L);
+            assertThat(response.username()).isEqualTo("target");
+            assertThat(response.isFollowing()).isTrue();
+            assertThat(response.isCurrentUser()).isFalse();
         }
     }
 }

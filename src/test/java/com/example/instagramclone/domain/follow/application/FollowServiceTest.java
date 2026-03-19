@@ -15,6 +15,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -177,10 +180,11 @@ class FollowServiceTest {
     class GetFollowers {
 
         @Test
-        @DisplayName("성공 - 팔로워 목록을 FollowMemberResponse로 변환하고 following / me 를 함께 계산")
+        @DisplayName("성공 - 팔로워 목록을 최신순 Slice 응답으로 변환하고 hasNext를 함께 반환")
         void success_builds_followers_response() {
             Long loginMemberId = 1L;
             Long memberId = 2L;
+            Pageable pageable = PageRequest.of(0, 2);
             Member loginMember = buildMockMember(loginMemberId, "me");
             Member profileOwner = buildMockMember(memberId, "target");
             Member followerA = buildMockMember(3L, "followerA");
@@ -191,20 +195,22 @@ class FollowServiceTest {
 
             given(memberService.findById(memberId)).willReturn(profileOwner);
             given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
-            given(followRepository.findAllByToMember(profileOwner)).willReturn(List.of(followerAtoOwner, meToOwner));
+            given(followRepository.findAllByToMember(profileOwner, pageable))
+                    .willReturn(new SliceImpl<>(List.of(followerAtoOwner, meToOwner), pageable, true));
             given(followRepository.findAllByFromMemberAndToMemberIn(loginMember, List.of(followerA, loginMember)))
                     .willReturn(List.of(meToFollowerA));
 
-            var response = followService.getFollowers(loginMemberId, memberId);
+            var response = followService.getFollowers(loginMemberId, memberId, pageable);
 
-            assertThat(response.users()).hasSize(2);
-            assertThat(response.users().get(0).memberId()).isEqualTo(3L);
-            assertThat(response.users().get(0).following()).isTrue();
-            assertThat(response.users().get(0).me()).isFalse();
+            assertThat(response.hasNext()).isTrue();
+            assertThat(response.items()).hasSize(2);
+            assertThat(response.items().get(0).memberId()).isEqualTo(3L);
+            assertThat(response.items().get(0).following()).isTrue();
+            assertThat(response.items().get(0).me()).isFalse();
 
-            assertThat(response.users().get(1).memberId()).isEqualTo(1L);
-            assertThat(response.users().get(1).following()).isFalse();
-            assertThat(response.users().get(1).me()).isTrue();
+            assertThat(response.items().get(1).memberId()).isEqualTo(1L);
+            assertThat(response.items().get(1).following()).isFalse();
+            assertThat(response.items().get(1).me()).isTrue();
         }
     }
 
@@ -213,10 +219,11 @@ class FollowServiceTest {
     class GetFollowings {
 
         @Test
-        @DisplayName("성공 - 팔로잉 목록을 FollowMemberResponse로 변환하고 following / me 를 함께 계산")
+        @DisplayName("성공 - 팔로잉 목록을 최신순 Slice 응답으로 변환하고 hasNext를 함께 반환")
         void success_builds_followings_response() {
             Long loginMemberId = 1L;
             Long memberId = 2L;
+            Pageable pageable = PageRequest.of(0, 2);
             Member loginMember = buildMockMember(loginMemberId, "me");
             Member profileOwner = buildMockMember(memberId, "target");
             Member followedA = buildMockMember(3L, "followedA");
@@ -227,20 +234,22 @@ class FollowServiceTest {
 
             given(memberService.findById(memberId)).willReturn(profileOwner);
             given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
-            given(followRepository.findAllByFromMember(profileOwner)).willReturn(List.of(ownerToMe, ownerToFollowedA));
+            given(followRepository.findAllByFromMember(profileOwner, pageable))
+                    .willReturn(new SliceImpl<>(List.of(ownerToMe, ownerToFollowedA), pageable, false));
             given(followRepository.findAllByFromMemberAndToMemberIn(loginMember, List.of(loginMember, followedA)))
                     .willReturn(List.of(meToFollowedA));
 
-            var response = followService.getFollowings(loginMemberId, memberId);
+            var response = followService.getFollowings(loginMemberId, memberId, pageable);
 
-            assertThat(response.users()).hasSize(2);
-            assertThat(response.users().get(0).memberId()).isEqualTo(1L);
-            assertThat(response.users().get(0).following()).isFalse();
-            assertThat(response.users().get(0).me()).isTrue();
+            assertThat(response.hasNext()).isFalse();
+            assertThat(response.items()).hasSize(2);
+            assertThat(response.items().get(0).memberId()).isEqualTo(1L);
+            assertThat(response.items().get(0).following()).isFalse();
+            assertThat(response.items().get(0).me()).isTrue();
 
-            assertThat(response.users().get(1).memberId()).isEqualTo(3L);
-            assertThat(response.users().get(1).following()).isTrue();
-            assertThat(response.users().get(1).me()).isFalse();
+            assertThat(response.items().get(1).memberId()).isEqualTo(3L);
+            assertThat(response.items().get(1).following()).isTrue();
+            assertThat(response.items().get(1).me()).isFalse();
         }
     }
 

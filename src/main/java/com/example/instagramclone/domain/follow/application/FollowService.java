@@ -2,14 +2,16 @@ package com.example.instagramclone.domain.follow.application;
 
 import com.example.instagramclone.core.exception.FollowErrorCode;
 import com.example.instagramclone.core.exception.FollowException;
-import com.example.instagramclone.domain.follow.api.FollowListResponse;
 import com.example.instagramclone.domain.follow.api.FollowMemberResponse;
 import com.example.instagramclone.domain.follow.api.FollowStatusResponse;
+import com.example.instagramclone.core.common.dto.SliceResponse;
 import com.example.instagramclone.domain.follow.domain.Follow;
 import com.example.instagramclone.domain.follow.domain.FollowRepository;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,23 +29,23 @@ public class FollowService {
 
     /**
      * 팔로우 API.
-     *
+     * <p>
      * 큰 흐름:
      * 1) 로그인 유저와 대상 유저를 조회한다.
      * 2) 자기 자신을 팔로우하려는지 검사한다.
      * 3) 이미 팔로우 중인지 검사한다.
      * 4) Follow 엔티티를 생성해 저장한다.
      * 5) 대상 유저의 최신 팔로워 수를 다시 조회해 응답에 담는다.
-     *
+     * <p>
      * 왜 countByToMember()를 다시 호출할까?
      * - 프론트는 이 응답만으로 버튼 상태뿐 아니라 프로필 상단 팔로워 수도 즉시 갱신하고 싶어 한다.
      * - 그래서 "팔로우 성공 여부"만이 아니라 "현재 팔로워 수"까지 함께 돌려준다.
-     *
+     * <p>
      * 왜 loginMember는 getReferenceById(), targetMember는 findById()를 사용할까?
      * - loginMemberId는 이미 인증 필터가 검증한 JWT에서 꺼낸 값이므로 비교적 신뢰할 수 있다.
-     *   따라서 반복 호출이 많은 팔로우 API에서는 매번 SELECT 하지 않고 프록시로 받아 성능을 아낀다.
+     * 따라서 반복 호출이 많은 팔로우 API에서는 매번 SELECT 하지 않고 프록시로 받아 성능을 아낀다.
      * - 반면 targetMemberId는 클라이언트가 URL로 보내는 값이므로 신뢰할 수 없다.
-     *   그래서 실제 존재 여부를 즉시 검증하기 위해 findById()로 조회한다.
+     * 그래서 실제 존재 여부를 즉시 검증하기 위해 findById()로 조회한다.
      * - 즉, "로그인 유저는 성능 최적화", "대상 유저는 정합성 검증"이라는 절충안이다.
      */
     @Transactional
@@ -77,13 +79,13 @@ public class FollowService {
 
     /**
      * 언팔로우 API.
-     *
+     * <p>
      * 큰 흐름:
      * 1) 로그인 유저와 대상 유저를 조회한다.
      * 2) 실제로 팔로우 관계가 존재하는지 확인한다.
      * 3) 있으면 삭제한다.
      * 4) 삭제 후 대상 유저의 최신 팔로워 수를 다시 조회해 응답에 담는다.
-     *
+     * <p>
      * 언팔로우도 같은 전략을 따른다.
      * - 로그인 유저는 JWT 기준 프록시 사용
      * - 대상 유저는 실제 존재 검증을 위해 findById() 사용
@@ -108,58 +110,68 @@ public class FollowService {
 
     /**
      * 특정 유저의 팔로워 목록 조회.
-     *
+     * <p>
      * 예:
      * - B의 프로필에서 "팔로워" 버튼을 눌렀을 때
      * - B를 팔로우하는 사람들(A, C, D...)을 조회한다.
-     *
+     * <p>
      * 방향:
      * - toMember   = 프로필 주인(B)
      * - fromMember = B를 팔로우하는 사람들(A, C, D...)
+     * <p>
+     * 페이징:
+     * - Follow.createdAt DESC 기준으로 잘라서 조회한다.
+     * - 즉, "가장 최근에 팔로우한 사람"이 리스트 맨 위에 온다.
      */
-    public FollowListResponse getFollowers(Long loginMemberId, Long memberId) {
+    public SliceResponse<FollowMemberResponse> getFollowers(Long loginMemberId, Long memberId, Pageable pageable) {
         // 조회 대상 프로필 주인이 실제 존재하는지 먼저 확인한다.
         Member profileOwner = memberService.findById(memberId);
         // 로그인 유저는 "이 리스트의 각 사람을 내가 팔로우 중인가?"를 계산할 기준이다.
         Member loginMember = memberService.getReferenceById(loginMemberId);
 
         // followers API 에서는 각 Follow 행의 fromMember 쪽이 화면에 뿌릴 대상이다.
-        List<Member> followers = followRepository.findAllByToMember(profileOwner).stream()
+        Slice<Follow> followerSlice = followRepository.findAllByToMember(profileOwner, pageable);
+        List<Member> followers = followerSlice.getContent().stream()
                 .map(Follow::getFromMember)
                 .toList();
 
-        return buildFollowListResponse(loginMember, followers);
+        return buildFollowListResponse(loginMember, followers, followerSlice.hasNext());
     }
 
     /**
      * 특정 유저의 팔로잉 목록 조회.
-     *
+     * <p>
      * 예:
      * - B의 프로필에서 "팔로잉" 버튼을 눌렀을 때
      * - B가 팔로우하고 있는 사람들(X, Y, Z...)을 조회한다.
-     *
+     * <p>
      * 방향:
      * - fromMember = 프로필 주인(B)
      * - toMember   = B가 팔로우하는 사람들(X, Y, Z...)
+     * <p>
+     * 페이징:
+     * - Follow.createdAt DESC 기준으로 잘라서 조회한다.
+     * - 즉, 프로필 주인이 "가장 최근에 팔로우한 사람"이 리스트 맨 위에 온다.
      */
-    public FollowListResponse getFollowings(Long loginMemberId, Long memberId) {
+    public SliceResponse<FollowMemberResponse> getFollowings(Long loginMemberId, Long memberId, Pageable pageable) {
         Member profileOwner = memberService.findById(memberId);
         Member loginMember = memberService.getReferenceById(loginMemberId);
 
         // followings API 에서는 각 Follow 행의 toMember 쪽이 화면에 뿌릴 대상이다.
-        List<Member> followings = followRepository.findAllByFromMember(profileOwner).stream()
+        Slice<Follow> followingSlice = followRepository.findAllByFromMember(profileOwner, pageable);
+        List<Member> followings = followingSlice.getContent().stream()
                 .map(Follow::getToMember)
                 .toList();
 
-        return buildFollowListResponse(loginMember, followings);
+        return buildFollowListResponse(loginMember, followings, followingSlice.hasNext());
     }
 
     /**
      * 로그인 유저가 특정 대상 유저를 팔로우 중인지 여부를 계산한다.
-     *
+     * <p>
      * 이 메서드는 "팔로우 상태만 필요할 때" 재사용한다.
      * 예: 프로필 헤더의 팔로우 버튼 상태, 검색 결과 카드의 팔로우 버튼 상태.
-     *
+     * <p>
      * 파라미터를 Member 엔티티로 받는 이유:
      * - 상위 서비스에서 이미 회원을 조회해 둔 경우 그대로 재사용할 수 있다.
      * - 같은 회원을 findById()로 두 번 조회하는 중복 쿼리를 피할 수 있다.
@@ -176,17 +188,17 @@ public class FollowService {
 
     /**
      * 팔로워/팔로잉 목록 응답 공통 조립 메서드.
-     *
+     * <p>
      * 각 대상 유저마다 계산해야 하는 값은 2개다.
      * - following: 로그인 유저가 이 사람을 팔로우 중인가?
      * - me: 이 사람이 로그인 유저 자신인가?
-     *
+     * <p>
      * following 을 한 명씩 existsBy...로 조회하면 쿼리가 많아지므로,
      * 로그인 유저 -> 대상 목록 전체를 한 번에 조회한 뒤 Set으로 바꿔 빠르게 판별한다.
      */
-    private FollowListResponse buildFollowListResponse(Member loginMember, List<Member> targetMembers) {
+    private SliceResponse<FollowMemberResponse> buildFollowListResponse(Member loginMember, List<Member> targetMembers, boolean hasNext) {
         if (targetMembers.isEmpty()) {
-            return FollowListResponse.empty();
+            return SliceResponse.of(hasNext, List.of());
         }
 
         // "로그인 유저가 이 목록의 사람들 중 누구를 팔로우 중인가?"를 한 번에 조회한다.
@@ -203,6 +215,6 @@ public class FollowService {
                 ))
                 .toList();
 
-        return FollowListResponse.of(users);
+        return SliceResponse.of(hasNext, users);
     }
 }

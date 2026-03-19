@@ -133,6 +133,17 @@ public class PostService {
     }
 
     /**
+     * username 기반 프로필 게시글 목록 조회.
+     *
+     * 프론트 라우트가 /:username 이므로,
+     * 프로필 페이지 진입 시에는 username -> member 조회 후 기존 writerId 조회를 재사용한다.
+     */
+    public SliceResponse<ProfilePostResponse> getMemberPostsByUsername(String username, Pageable pageable) {
+        Member member = memberService.findByUsername(username);
+        return getMemberPosts(member.getId(), pageable);
+    }
+
+    /**
      * "게시글 Slice -> DTO SliceResponse" 변환 로직을 공통화한 메서드.
      *
      * 메인 피드와 프로필 게시글 목록은

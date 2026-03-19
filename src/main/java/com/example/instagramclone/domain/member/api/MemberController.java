@@ -17,18 +17,15 @@ public class MemberController {
     private final MemberProfileService memberProfileService;
 
     /**
-     * 특정 유저의 프로필 1건 조회.
+     * username 기반 프로필 조회.
      *
-     * Day 13 Step 3의 핵심:
-     * - 프로필 화면에 필요한 기본 회원 정보
-     * - 로그인 유저 기준 isFollowing 상태
-     * 를 함께 내려준다.
+     * 프론트의 /:username 라우트와 바로 연결하기 위한 엔드포인트.
      */
-    @GetMapping("/api/members/{memberId}")
-    public ResponseEntity<ApiResponse<MemberProfileResponse>> getMemberProfile(
-            @PathVariable Long memberId,
+    @GetMapping("/api/profiles/{username}")
+    public ResponseEntity<ApiResponse<MemberProfileResponse>> getProfileByUsername(
+            @PathVariable String username,
             @LoginUser LoginUserInfoDto loginUser) {
-        MemberProfileResponse response = memberProfileService.getProfile(loginUser.id(), memberId);
+        MemberProfileResponse response = memberProfileService.getProfileByUsername(loginUser.id(), username);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

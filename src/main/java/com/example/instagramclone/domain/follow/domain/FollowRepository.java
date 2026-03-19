@@ -1,6 +1,8 @@
 package com.example.instagramclone.domain.follow.domain;
 
 import com.example.instagramclone.domain.member.domain.Member;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -30,14 +32,16 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     /**
      * 특정 유저를 팔로우하는 사람들의 Follow 목록 조회.
      * toMember = 프로필 주인, fromMember = 팔로워들
+     * Pageable 의 정렬 조건(createdAt DESC)을 그대로 태워 최신 팔로우 순으로 Slice 조회한다.
      */
-    List<Follow> findAllByToMember(Member member);
+    Slice<Follow> findAllByToMember(Member member, Pageable pageable);
 
     /**
      * 특정 유저가 팔로우하고 있는 사람들의 Follow 목록 조회.
      * fromMember = 프로필 주인, toMember = 그 유저가 팔로우하는 대상들
+     * Pageable 의 정렬 조건(createdAt DESC)을 그대로 태워 최신 팔로잉 순으로 Slice 조회한다.
      */
-    List<Follow> findAllByFromMember(Member member);
+    Slice<Follow> findAllByFromMember(Member member, Pageable pageable);
 
     /**
      * 리스트 응답 최적화를 위한 배치 조회용 메서드.
