@@ -1,0 +1,70 @@
+package com.example.instagramclone.domain.comment.api;
+
+import com.example.instagramclone.core.common.dto.ApiResponse;
+import com.example.instagramclone.core.common.dto.SliceResponse;
+import com.example.instagramclone.core.util.PageableUtil;
+import com.example.instagramclone.domain.comment.application.CommentService;
+import com.example.instagramclone.infrastructure.security.annotation.LoginUser;
+import com.example.instagramclone.infrastructure.security.dto.LoginUserInfoDto;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * 게시글 댓글 API (Day 14).
+ *
+ * <p>경로·응답 형식은 {@link com.example.instagramclone.domain.post.api.PostController} 와 맞춥니다.
+ */
+@RestController
+@RequiredArgsConstructor
+public class CommentController {
+
+    private final CommentService commentService;
+
+    /**
+     * 댓글 또는 대댓글 작성.
+     */
+    @PostMapping("/api/posts/{postId}/comments")
+    public ResponseEntity<ApiResponse<CommentResponse>> createComment(
+            @PathVariable Long postId,
+            @Valid @RequestBody CommentCreateRequest request,
+            @LoginUser LoginUserInfoDto loginUser) {
+
+        CommentResponse response = commentService.createComment(postId, request, loginUser.id());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    /**
+     * 원댓글 목록 (무한 스크롤, 각 항목에 replyCount).
+     */
+    @GetMapping("/api/posts/{postId}/comments")
+    public ResponseEntity<ApiResponse<SliceResponse<CommentResponse>>> getRootComments(
+            @PathVariable Long postId,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size,
+            @LoginUser LoginUserInfoDto loginUser) {
+
+        Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
+        SliceResponse<CommentResponse> response = commentService.getRootComments(postId, pageable, loginUser.id());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * 특정 원댓글의 대댓글 목록 (더보기).
+     */
+    @GetMapping("/api/posts/{postId}/comments/{rootCommentId}/replies")
+    public ResponseEntity<ApiResponse<SliceResponse<CommentResponse>>> getReplies(
+            @PathVariable Long postId,
+            @PathVariable Long rootCommentId,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @LoginUser LoginUserInfoDto loginUser) {
+
+        Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
+        SliceResponse<CommentResponse> response = commentService.getReplies(postId, rootCommentId, pageable, loginUser.id());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+}
