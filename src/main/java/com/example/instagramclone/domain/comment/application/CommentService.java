@@ -13,10 +13,15 @@ import com.example.instagramclone.domain.post.application.PostService;
 import com.example.instagramclone.domain.post.domain.Post;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 댓글 유스케이스 (작성·조회).
@@ -32,7 +37,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     /** 게시글 조회·검증은 Post 도메인 서비스로만 위임 (리포지토리 직접 주입 금지) */
     private final PostService postService;
-    /** 댓글 작성자 Member 조회 — 회원 도메인의 공개 조회 API 재사용 */
+    /** 댓글 작성자 FK 연결용 — {@link MemberService#getReferenceById(Long)} (토큰 신뢰, 조회 비용 최소화) */
     private final MemberService memberService;
 
     /**
@@ -95,11 +100,37 @@ public class CommentService {
     /**
      * 게시글의 원댓글 목록 (replyCount 포함).
      *
-     * @param loginMemberId 향후 "내가 쓴 댓글" 표시 등에 사용
+     * <ol>
+     *   <li>게시글이 없으면 {@link PostService#getPostByIdOrThrow(Long)} 에서 예외.</li>
+     *   <li>QueryDSL로 원댓글만 Slice 조회 ({@code parent IS NULL}).</li>
+     *   <li>현재 페이지 원댓글 id들에 대해 대댓글 수를 한 번에 집계해 N+1 방지.</li>
+     *   <li>각 행을 {@link CommentResponse#fromRootListItem(Comment, long)} 로 변환.</li>
+     * </ol>
+     *
+     * @param loginMemberId 향후 "내가 쓴 댓글" 하이라이트 등에 사용 (현재는 미사용)
      */
     public SliceResponse<CommentResponse> getRootComments(Long postId, Pageable pageable, Long loginMemberId) {
-        // TODO Day 14: postService.getPostByIdOrThrow(postId) 로 존재 검증 → findRootCommentsByPostId → replyCount 배치 집계 → CommentResponse 조립
-        return SliceResponse.of(false, Collections.emptyList());
+        // 1) 게시글 존재 검증 (없으면 PostException)
+        postService.getPostByIdOrThrow(postId);
+
+        // 2) 원댓글 Slice (작성자 fetchJoin 은 리포지토리 구현체에서 처리)
+        Slice<Comment> slice = commentRepository.findRootCommentsByPostId(postId, pageable);
+
+        List<Comment> roots = slice.getContent();
+        if (roots.isEmpty()) {
+            return SliceResponse.of(slice.hasNext(), Collections.emptyList());
+        }
+
+        // 3) 이 페이지에 나온 원댓글 id → 대댓글 수 (배치 집계)
+        Set<Long> rootIds = roots.stream().map(Comment::getId).collect(Collectors.toSet());
+        Map<Long, Long> replyCountByRootId = commentRepository.countRepliesByRootCommentIds(rootIds);
+
+        // 4) DTO 조립 (집계 맵에 없으면 해당 원댓글의 대댓글 0개)
+        List<CommentResponse> items = roots.stream()
+                .map(c -> CommentResponse.fromRootListItem(c, replyCountByRootId.getOrDefault(c.getId(), 0L)))
+                .toList();
+
+        return SliceResponse.of(slice.hasNext(), items);
     }
 
     /**

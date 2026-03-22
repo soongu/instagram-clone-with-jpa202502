@@ -44,4 +44,22 @@ public record CommentResponse(
                 comment.getCreatedAt()
         );
     }
+
+    /**
+     * 원댓글 목록 조회 전용: 배치로 집계한 대댓글 수를 {@code replyCount}에 넣는다.
+     *
+     * @param replyCount 해당 원댓글 id를 {@code parent}로 갖는 대댓글 행 개수 (0 이상)
+     */
+    public static CommentResponse fromRootListItem(Comment comment, long replyCount) {
+        int safe = replyCount > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) replyCount;
+        return new CommentResponse(
+                comment.getId(),
+                comment.getContent(),
+                comment.getWriter().getId(),
+                comment.getWriter().getUsername(),
+                comment.getWriter().getProfileImageUrl(),
+                safe,
+                comment.getCreatedAt()
+        );
+    }
 }

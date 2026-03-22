@@ -1,5 +1,7 @@
 package com.example.instagramclone.core.util;
 
+import com.example.instagramclone.domain.comment.domain.Comment;
+import com.example.instagramclone.domain.comment.domain.CommentRepository;
 import com.example.instagramclone.domain.follow.domain.Follow;
 import com.example.instagramclone.domain.follow.domain.FollowRepository;
 import com.example.instagramclone.domain.member.domain.Member;
@@ -42,6 +44,7 @@ public class TestDataInit implements ApplicationRunner {
     private final PostRepository postRepository;
     private final PostImageRepository postImageRepository;
     private final PostLikeRepository postLikeRepository;
+    private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -101,7 +104,10 @@ public class TestDataInit implements ApplicationRunner {
         // 각 회원의 대표 게시글 몇 개에 서로 다른 회원들이 좋아요를 누른 상황을 만든다.
         seedPostLikeRelations(savedMembers, postsByMember);
 
-        System.out.println("테스트용 계정 5개, 팔로우 관계, 좋아요 관계, 피드 세팅 완료! (게시물 총 25개)");
+        // 댓글·대댓글 (Day 14 Step 3 API: 원댓글 목록 + replyCount) 테스트용
+        seedCommentThreads(savedMembers, postsByMember);
+
+        System.out.println("테스트용 계정 5개, 팔로우, 좋아요, 댓글/대댓글 스레드, 피드 세팅 완료! (게시물 총 25개)");
     }
 
     private void seedFollowRelations(List<Member> members) {
@@ -182,6 +188,72 @@ public class TestDataInit implements ApplicationRunner {
         postLikeRepository.save(PostLike.create(member, post));
         // post_like 레코드와 비정규화 likeCount를 함께 맞춰 둔다.
         post.changeLikeCountBy(1);
+    }
+
+    /**
+     * 쿠로미·마이멜로디·피카츄·키티·하츄핑이 서로의 게시글에 원댓글을 달고, 일부에만 대댓글(2-depth)을 이어 붙인다.
+     * Step 3 {@code GET /api/posts/{postId}/comments} 로 원댓글 + {@code replyCount} 를 확인할 때 사용한다.
+     * 쿠로미 1번 게시글은 원댓·대댓이 많아 {@code GROUP BY parent_id} / {@code COUNT} 네이티브 SQL 예시로 쓰기 좋다.
+     */
+    private void seedCommentThreads(List<Member> members, List<List<Post>> postsByMember) {
+        Member kuromi = members.get(0);
+        Member mamel = members.get(1);
+        Member pikachu = members.get(2);
+        Member kitty = members.get(3);
+        Member heartping = members.get(4);
+
+        // --- 쿠로미(kuromi) 1번 게시글: 원댓·대댓 풍부 (네이티브 SQL GROUP BY parent_id 집계 예시용) ---
+        // 원댓 6개, 대댓 분포: 4 / 3 / 2 / 2 / 1 / 0 
+        Post kuromiPost0 = postsByMember.get(0).get(0);
+        Comment kR1 = commentRepository.save(Comment.create(kuromiPost0, mamel, "쿠로미도 오늘 너무 귀여워~", null));
+        Comment kR2 = commentRepository.save(Comment.create(kuromiPost0, pikachu, "피카피카! 응원이야", null));
+        Comment kR3 = commentRepository.save(Comment.create(kuromiPost0, heartping, "하츄하츄! 좋아요", null));
+        Comment kR4 = commentRepository.save(Comment.create(kuromiPost0, kitty, "리본이랑 배경이 찰떡이야", null));
+        Comment kR5 = commentRepository.save(Comment.create(kuromiPost0, mamel, "사진 각도 미쳤다… 또 보러 올게", null));
+        commentRepository.save(Comment.create(kuromiPost0, mamel, "쿠로미 피드는 힐링이야 (대댓 없는 원댓 예시)", null));
+
+        commentRepository.save(Comment.create(kuromiPost0, kuromi, "마이멜로디 고마워 💜", kR1));
+        commentRepository.save(Comment.create(kuromiPost0, pikachu, "멜로디 칭찬 인정이야 피카", kR1));
+        commentRepository.save(Comment.create(kuromiPost0, kitty, "쿠로미×멜로디 조합 좋다", kR1));
+        commentRepository.save(Comment.create(kuromiPost0, heartping, "하츄핑도 동의!", kR1));
+
+        commentRepository.save(Comment.create(kuromiPost0, kuromi, "피카츄 고마워, 충전은 실내에서만!", kR2));
+        commentRepository.save(Comment.create(kuromiPost0, kitty, "피카츄 옆자리 비워줄게", kR2));
+        commentRepository.save(Comment.create(kuromiPost0, mamel, "피카츄 응원 댓글 귀엽다", kR2));
+
+        commentRepository.save(Comment.create(kuromiPost0, kuromi, "하츄핑도 좋아요 눌렀지?", kR3));
+        commentRepository.save(Comment.create(kuromiPost0, pikachu, "하츄하츄에 피카 한 스푼", kR3));
+
+        commentRepository.save(Comment.create(kuromiPost0, kuromi, "키티 눈썰미 좋다", kR4));
+        commentRepository.save(Comment.create(kuromiPost0, heartping, "키티랑 쿠로미 케미 좋아", kR4));
+
+        commentRepository.save(Comment.create(kuromiPost0, kuromi, "멜로디 또 와줘서 고마워", kR5));
+
+        // --- 마이멜로디(mamel) 1번 게시글: 원댓 2개 + 대댓 1개 ---
+        Post mamelPost0 = postsByMember.get(1).get(0);
+        Comment mRootKuromi = commentRepository.save(Comment.create(mamelPost0, kuromi, "핑크 헤어밴드 너무 잘 어울려", null));
+        commentRepository.save(Comment.create(mamelPost0, pikachu, "멜로디 노래 듣고 왔어", null));
+        commentRepository.save(Comment.create(mamelPost0, mamel, "쿠로미도 내가 사랑해~", mRootKuromi));
+
+        // --- 피카츄(pikachu) 1번 게시글: 원댓 1개 + 대댓 1개 ---
+        Post pikaPost0 = postsByMember.get(2).get(0);
+        Comment pRootKuromi = commentRepository.save(Comment.create(pikaPost0, kuromi, "전기 타면 안 돼! 조심해", null));
+        commentRepository.save(Comment.create(pikaPost0, heartping, "하츄핑이 응원할게!", pRootKuromi));
+
+        // --- 키티(kitty) 1번 게시글: 원댓만 2개 (대댓 없음 → replyCount 0) ---
+        Post kittyPost0 = postsByMember.get(3).get(0);
+        commentRepository.save(Comment.create(kittyPost0, kuromi, "리본이 오늘따라 반짝반짝", null));
+        commentRepository.save(Comment.create(kittyPost0, mamel, "키티 짱", null));
+
+        // --- 하츄핑(heartping) 1번 게시글: 원댓 2개 + 대댓 1개 ---
+        Post heartPost0 = postsByMember.get(4).get(0);
+        Comment hRootKuromi = commentRepository.save(Comment.create(heartPost0, kuromi, "캐치 티니핑 파이팅!", null));
+        commentRepository.save(Comment.create(heartPost0, kitty, "키티랑 하츄핑 투샷 보고 싶다", null));
+        commentRepository.save(Comment.create(heartPost0, heartping, "하츄핑이 직접 답글 달았어!", hRootKuromi));
+
+        // --- 추가: 쿠로미 2번 게시글에만 가벼운 원댓 1개 (다른 글과 비교용) ---
+        Post kuromiPost1 = postsByMember.get(0).get(1);
+        commentRepository.save(Comment.create(kuromiPost1, pikachu, "두 번째 글도 피카!", null));
     }
 
     /**

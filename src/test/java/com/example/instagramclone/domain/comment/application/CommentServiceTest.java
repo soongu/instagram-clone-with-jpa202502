@@ -6,6 +6,7 @@ import com.example.instagramclone.core.exception.MemberErrorCode;
 import com.example.instagramclone.core.exception.MemberException;
 import com.example.instagramclone.core.exception.PostErrorCode;
 import com.example.instagramclone.core.exception.PostException;
+import com.example.instagramclone.core.common.dto.SliceResponse;
 import com.example.instagramclone.domain.comment.api.CommentCreateRequest;
 import com.example.instagramclone.domain.comment.api.CommentResponse;
 import com.example.instagramclone.domain.comment.domain.Comment;
@@ -14,6 +15,10 @@ import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.post.application.PostService;
 import com.example.instagramclone.domain.post.domain.Post;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,11 +30,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -40,7 +49,7 @@ import static org.mockito.Mockito.never;
  * <p>검증 시나리오:
  * <ul>
  *   <li>게시글 없음 → {@link PostException}(POST_NOT_FOUND)</li>
- *   <li>회원 없음 → {@link MemberException}(MEMBER_NOT_FOUND) — MemberService 위임</li>
+ *   <li>회원 조회 실패(시뮬) → {@link MemberException}(MEMBER_NOT_FOUND) — {@link MemberService#getReferenceById(Long)} 스텁</li>
  *   <li>원댓글 작성 성공 — parentId null</li>
  *   <li>대댓글 작성 성공 — 부모는 원댓글·같은 게시글</li>
  *   <li>부모 id 없음 → COMMENT_NOT_FOUND</li>
@@ -118,12 +127,12 @@ class CommentServiceTest {
         }
 
         @Test
-        @DisplayName("실패 - 로그인 회원이 없으면 MemberException(MEMBER_NOT_FOUND) — MemberService.findById")
+        @DisplayName("실패 - 작성자 참조 실패 시 MemberException — MemberService.getReferenceById (실무에서는 FK/flush 시점 검증)")
         void fail_when_member_missing() {
             Member writer = buildMember(MEMBER_ID, "u1");
             Post post = buildPost(POST_ID, writer);
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
-            given(memberService.findById(MEMBER_ID))
+            given(memberService.getReferenceById(MEMBER_ID))
                     .willThrow(new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
             CommentCreateRequest req = new CommentCreateRequest("안녕", null);
@@ -141,7 +150,7 @@ class CommentServiceTest {
             Member writer = buildMember(MEMBER_ID, "writer");
             Post post = buildPost(POST_ID, writer);
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
-            given(memberService.findById(MEMBER_ID)).willReturn(writer);
+            given(memberService.getReferenceById(MEMBER_ID)).willReturn(writer);
             stubSaveAssignsIdAndCreatedAt(100L);
 
             CommentCreateRequest req = new CommentCreateRequest("첫 댓글입니다", null);
@@ -173,7 +182,7 @@ class CommentServiceTest {
             ReflectionTestUtils.setField(root, "id", 20L);
 
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
-            given(memberService.findById(MEMBER_ID)).willReturn(writer);
+            given(memberService.getReferenceById(MEMBER_ID)).willReturn(writer);
             given(commentRepository.findById(20L)).willReturn(Optional.of(root));
             stubSaveAssignsIdAndCreatedAt(21L);
 
@@ -194,7 +203,7 @@ class CommentServiceTest {
             Member writer = buildMember(MEMBER_ID, "writer");
             Post post = buildPost(POST_ID, writer);
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
-            given(memberService.findById(MEMBER_ID)).willReturn(writer);
+            given(memberService.getReferenceById(MEMBER_ID)).willReturn(writer);
             given(commentRepository.findById(999L)).willReturn(Optional.empty());
 
             CommentCreateRequest req = new CommentCreateRequest("대댓글", 999L);
@@ -216,7 +225,7 @@ class CommentServiceTest {
             ReflectionTestUtils.setField(parentOnOtherPost, "id", 30L);
 
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
-            given(memberService.findById(MEMBER_ID)).willReturn(writer);
+            given(memberService.getReferenceById(MEMBER_ID)).willReturn(writer);
             given(commentRepository.findById(30L)).willReturn(Optional.of(parentOnOtherPost));
 
             CommentCreateRequest req = new CommentCreateRequest("잘못된 대댓글", 30L);
@@ -239,7 +248,7 @@ class CommentServiceTest {
             ReflectionTestUtils.setField(reply, "id", 41L);
 
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
-            given(memberService.findById(MEMBER_ID)).willReturn(writer);
+            given(memberService.getReferenceById(MEMBER_ID)).willReturn(writer);
             given(commentRepository.findById(41L)).willReturn(Optional.of(reply));
 
             CommentCreateRequest req = new CommentCreateRequest("대댓글에 답글 시도", 41L);
@@ -249,6 +258,78 @@ class CommentServiceTest {
                     .hasMessage(CommentErrorCode.PARENT_NOT_ROOT_COMMENT.getMessage());
 
             then(commentRepository).should(never()).save(any());
+        }
+    }
+
+    /**
+     * {@link com.example.instagramclone.domain.comment.application.CommentService#getRootComments} 단위 테스트.
+     * QueryDSL 구현 자체는 {@link com.example.instagramclone.domain.comment.infrastructure.CommentRepositoryCustomImplTest} 에서 검증.
+     */
+    @Nested
+    @DisplayName("getRootComments()")
+    class GetRootComments {
+
+        @Test
+        @DisplayName("실패 - 게시글이 없으면 PostException — getPostByIdOrThrow")
+        void fail_when_post_missing() {
+            given(postService.getPostByIdOrThrow(POST_ID))
+                    .willThrow(new PostException(PostErrorCode.POST_NOT_FOUND));
+            Pageable pageable = PageRequest.of(0, 5);
+
+            assertThatThrownBy(() -> commentService.getRootComments(POST_ID, pageable, MEMBER_ID))
+                    .isInstanceOf(PostException.class)
+                    .hasMessage(PostErrorCode.POST_NOT_FOUND.getMessage());
+
+            then(commentRepository).shouldHaveNoInteractions();
+        }
+
+        @Test
+        @DisplayName("성공 - 원댓글이 없으면 빈 SliceResponse, replyCount 집계 호출 없음")
+        void success_empty_no_count_query() {
+            Post post = buildPost(POST_ID, buildMember(2L, "author"));
+            given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
+            Pageable pageable = PageRequest.of(0, 5);
+            given(commentRepository.findRootCommentsByPostId(POST_ID, pageable))
+                    .willReturn(new SliceImpl<>(List.of(), pageable, false));
+
+            SliceResponse<CommentResponse> response = commentService.getRootComments(POST_ID, pageable, MEMBER_ID);
+
+            assertThat(response.hasNext()).isFalse();
+            assertThat(response.items()).isEmpty();
+            then(commentRepository).should(never()).countRepliesByRootCommentIds(anySet());
+        }
+
+        @Test
+        @DisplayName("성공 - 원댓글 2건, 배치 집계 replyCount 반영 (0건 포함)")
+        void success_merges_reply_counts() {
+            Member writer = buildMember(MEMBER_ID, "writer");
+            Post post = buildPost(POST_ID, writer);
+            given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
+
+            Comment root1 = Comment.create(post, writer, "첫 줄", null);
+            ReflectionTestUtils.setField(root1, "id", 100L);
+            ReflectionTestUtils.setField(root1, "createdAt", LocalDateTime.of(2025, 3, 22, 10, 0));
+
+            Comment root2 = Comment.create(post, writer, "둘째", null);
+            ReflectionTestUtils.setField(root2, "id", 200L);
+            ReflectionTestUtils.setField(root2, "createdAt", LocalDateTime.of(2025, 3, 22, 11, 0));
+
+            Pageable pageable = PageRequest.of(0, 10);
+            Slice<Comment> slice = new SliceImpl<>(List.of(root1, root2), pageable, false);
+            given(commentRepository.findRootCommentsByPostId(POST_ID, pageable)).willReturn(slice);
+
+            given(commentRepository.countRepliesByRootCommentIds(anySet()))
+                    .willReturn(Map.of(100L, 2L, 200L, 0L));
+
+            SliceResponse<CommentResponse> response = commentService.getRootComments(POST_ID, pageable, MEMBER_ID);
+
+            assertThat(response.hasNext()).isFalse();
+            assertThat(response.items()).hasSize(2);
+            assertThat(response.items().get(0).replyCount()).isEqualTo(2);
+            assertThat(response.items().get(1).replyCount()).isZero();
+
+            then(commentRepository).should().countRepliesByRootCommentIds(
+                    argThat(ids -> ids.size() == 2 && ids.contains(100L) && ids.contains(200L)));
         }
     }
 }

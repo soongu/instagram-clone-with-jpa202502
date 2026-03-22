@@ -1,6 +1,7 @@
 package com.example.instagramclone.domain.comment.infrastructure;
 
 import com.example.instagramclone.domain.comment.domain.Comment;
+import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -10,12 +11,16 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.example.instagramclone.domain.comment.domain.QComment.comment;
 
 /**
  * {@link CommentRepositoryCustom}의 QueryDSL 구현체.
  *
+ * <p>원댓글 목록은 {@code parent IS NULL}, 대댓글 수 집계는 {@code parent_id IN (...)} 그룹으로 N+1 없이 처리합니다.
  */
 @Repository
 @RequiredArgsConstructor
@@ -23,26 +28,75 @@ public class CommentRepositoryCustomImpl implements CommentRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
 
+    /**
+     * 특정 게시글의 원댓글만 조회합니다. 작성자(Member)는 {@code fetchJoin}으로 함께 로딩해 N+1을 피합니다.
+     *
+     * <p>정렬: <strong>시간순(오래된 댓글 먼저)</strong> — {@code createdAt ASC}, 동일 시각·배치 삽입 시 순서 고정을 위해 {@code id ASC} 보조 정렬.
+     * (메인 피드 글 목록의 최신순 DESC와 달리, 댓글은 대화 스레드를 위에서 아래로 읽는 UX에 맞춤.)
+     * Slice 판별: {@code limit = pageSize + 1} 로 한 건 더 가져와 {@code hasNext} 를 결정합니다.
+     */
     @Override
     public Slice<Comment> findRootCommentsByPostId(Long postId, Pageable pageable) {
-        // TODO Day 14: QComment.comment.post.id.eq(postId).and(QComment.comment.parent.isNull()) ...
-        // TODO Day 14: offset/limit + (pageSize+1)로 hasNext 판별 (FollowRepositoryCustomImpl 참고)
-        return new SliceImpl<>(Collections.emptyList(), pageable, false);
+        List<Comment> content = queryFactory
+                .selectFrom(comment)
+                .join(comment.writer).fetchJoin()
+                .where(
+                        comment.post.id.eq(postId),
+                        comment.parent.isNull()
+                )
+                .orderBy(comment.createdAt.asc(), comment.id.asc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1L)
+                .fetch();
+
+        return toSlice(content, pageable);
+    }
+
+    /**
+     * 원댓글 id 집합에 대해, 각 원댓글을 {@code parent}로 갖는 대댓글 행 수를 한 번에 집계합니다.
+     *
+     * <p>집계 결과에 없는 원댓글 id는 서비스에서 0으로 간주합니다 (대댓글 0개).
+     */
+    @Override
+    public Map<Long, Long> countRepliesByRootCommentIds(Set<Long> rootCommentIds) {
+        if (rootCommentIds == null || rootCommentIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        /* 
+        SELECT parent_id, COUNT(id)
+        FROM comment
+        WHERE parent_id IN ( ... )
+        GROUP BY parent_id;
+        */
+        // reply 행: parent_id = 원댓글 id. parent IS NOT NULL 인 행만 대상이 됨.
+        List<Tuple> tuples = queryFactory
+                .select(comment.parent.id, comment.id.count())
+                .from(comment)
+                .where(comment.parent.id.in(rootCommentIds))
+                .groupBy(comment.parent.id)
+                .fetch();
+
+        Map<Long, Long> map = new HashMap<>();
+        for (Tuple tuple : tuples) {
+            Long rootId = tuple.get(0, Long.class);
+            Long cnt = tuple.get(1, Long.class);
+            map.put(rootId, cnt);
+        }
+        return map;
     }
 
     @Override
     public Slice<Comment> findRepliesByRootComment(Long postId, Long rootCommentId, Pageable pageable) {
-        // TODO Day 14: parent.id == rootCommentId, 동일 post 소속 검증 조건 추가
+        // Step 4 라이브 코딩 예정
         return new SliceImpl<>(Collections.emptyList(), pageable, false);
     }
 
-    @Override
-    public Map<Long, Long> countRepliesByRootCommentIds(Set<Long> rootCommentIds) {
-        // TODO Day 14: parent.id in rootCommentIds group by parent.id, count — 빈 집합이면 빈 Map
-        if (rootCommentIds == null || rootCommentIds.isEmpty()) {
-            return Collections.emptyMap();
+    private static Slice<Comment> toSlice(List<Comment> items, Pageable pageable) {
+        boolean hasNext = items.size() > pageable.getPageSize();
+        if (hasNext) {
+            items = items.subList(0, pageable.getPageSize());
         }
-        return new HashMap<>();
+        return new SliceImpl<>(items, pageable, hasNext);
     }
-
 }

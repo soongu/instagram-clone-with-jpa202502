@@ -33,7 +33,4 @@ public interface CommentRepositoryCustom {
      * 원댓글 id → 대댓글 개수 (현재 페이지의 원댓글 id들에 대해 한 번에 집계).
      */
     Map<Long, Long> countRepliesByRootCommentIds(Set<Long> rootCommentIds);
-
-
-    // TODO Day 14: QComment 생성 후 CommentRepositoryCustomImpl에서 QueryDSL 구현
 }
