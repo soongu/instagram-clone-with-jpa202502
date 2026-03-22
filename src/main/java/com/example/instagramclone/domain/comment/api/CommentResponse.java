@@ -1,5 +1,7 @@
 package com.example.instagramclone.domain.comment.api;
 
+import com.example.instagramclone.domain.comment.domain.Comment;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
  *
  * <p>대댓글 전용 조회 API에서는 {@code replyCount}를 null로 두거나 스펙에서 제외해도 됨 (팀 합의).
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record CommentResponse(
         Long id,
         String content,
@@ -20,4 +23,25 @@ public record CommentResponse(
         Integer replyCount,
         LocalDateTime createdAt
 ) {
+    /**
+     * 저장 직후 또는 단건 조회용: 엔티티 → API 응답.
+     *
+     * <ul>
+     *   <li>원댓글({@code parent == null}): 아직 목록 조회 전이므로 {@code replyCount}는 0으로 둠 (작성 직후 대댓글 없음).</li>
+     *   <li>대댓글: 목록 스펙상 원댓글에만 replyCount를 붙이므로 {@code replyCount}는 null.</li>
+     * </ul>
+     */
+    public static CommentResponse from(Comment comment) {
+        boolean isRoot = comment.getParent() == null;
+        Integer replyCount = isRoot ? 0 : null;
+        return new CommentResponse(
+                comment.getId(),
+                comment.getContent(),
+                comment.getWriter().getId(),
+                comment.getWriter().getUsername(),
+                comment.getWriter().getProfileImageUrl(),
+                replyCount,
+                comment.getCreatedAt()
+        );
+    }
 }

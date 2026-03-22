@@ -90,6 +90,14 @@ public class PostService {
     }
 
     /**
+     * ID로 게시글 엔티티를 조회한다. 없으면 {@link PostException}(POST_NOT_FOUND).
+     */
+    public Post getPostByIdOrThrow(Long postId) {
+        return postRepository.findById(postId)
+                .orElseThrow(() -> new PostException(PostErrorCode.POST_NOT_FOUND));
+    }
+
+    /**
      * 메인 피드. QueryDSL 1쿼리: Post + writer fetchJoin + EXISTS(post_like) 로 liked (과제).
      * 이미지는 기존처럼 findByPostIn 1회.
      */
