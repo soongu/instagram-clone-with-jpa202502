@@ -134,10 +134,30 @@ public class CommentService {
     }
 
     /**
-     * 원댓글에 달린 대댓글 목록.
+     * 특정 원댓글에 달린 대댓글만 Slice 로 조회합니다 (답글 더보기).
+     *
+     * <ol>
+     *   <li>게시글 존재: {@link PostService#getPostByIdOrThrow(Long)}</li>
+     *   <li>선검증(QueryDSL): {@code rootCommentId} 가 이 {@code postId} 의 <strong>원댓글</strong>인지 —
+     *       아니면 {@link CommentErrorCode#COMMENT_NOT_FOUND} (다른 글의 댓글·대댓글 id 포함)</li>
+     *   <li>대댓글 Slice: {@link CommentRepository#findRepliesByRootComment(Long, Long, Pageable)}</li>
+     *   <li>응답: {@link CommentResponse#from(Comment)} — 대댓글 목록에서는 {@code replyCount} 를 쓰지 않으므로 {@code null}</li>
+     * </ol>
+     *
+     * @param loginMemberId 향후 차단 사용자 필터 등에 사용 (현재는 미사용)
      */
     public SliceResponse<CommentResponse> getReplies(Long postId, Long rootCommentId, Pageable pageable, Long loginMemberId) {
-        // TODO Day 14: root가 해당 post의 원댓글인지 검증 → findRepliesByRootComment → DTO 조립 (replyCount null)
-        return SliceResponse.of(false, Collections.emptyList());
+        postService.getPostByIdOrThrow(postId);
+
+        if (!commentRepository.existsRootCommentForReplies(postId, rootCommentId)) {
+            throw new CommentException(CommentErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        Slice<Comment> slice = commentRepository.findRepliesByRootComment(postId, rootCommentId, pageable);
+        List<CommentResponse> items = slice.getContent().stream()
+                .map(CommentResponse::from)
+                .toList();
+
+        return SliceResponse.of(slice.hasNext(), items);
     }
 }

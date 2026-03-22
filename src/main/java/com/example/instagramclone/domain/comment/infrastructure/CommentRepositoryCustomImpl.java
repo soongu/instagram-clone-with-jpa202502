@@ -86,10 +86,59 @@ public class CommentRepositoryCustomImpl implements CommentRepositoryCustom {
         return map;
     }
 
+    /**
+     * 대댓글 API 진입 전, 경로 변수 조합이 유효한지 한 방에 검사합니다.
+     *
+     * <pre>
+     * SELECT 1
+     * FROM comments c
+     * WHERE c.id = :rootCommentId
+     *   AND c.post_id = :postId
+     *   AND c.parent_id IS NULL;
+     * </pre>
+     *
+     * <p>대댓글 id를 넣거나, 다른 게시글에 달린 댓글 id를 넣으면 행이 없으므로 {@code false} 입니다.
+     */
+    @Override
+    public boolean existsRootCommentForReplies(Long postId, Long rootCommentId) {
+        if (rootCommentId == null) {
+            return false;
+        }
+        Comment one = queryFactory
+                .selectFrom(comment)
+                .where(
+                        comment.id.eq(rootCommentId),
+                        comment.post.id.eq(postId),
+                        comment.parent.isNull()
+                )
+                .fetchFirst();
+        return one != null;
+    }
+
+    /**
+     * 특정 원댓글({@code rootCommentId})에 매달린 대댓글만 조회합니다.
+     *
+     * <p>조건: {@code post_id = postId} 이고 {@code parent_id = rootCommentId}.
+     * (같은 테이블에 원댓·대댓이 같이 있으므로, 반드시 게시글 id까지 넣어 다른 글의 동일 parent id 충돌을 막습니다.)
+     *
+     * <p>정렬: 원댓글 목록과 동일하게 <strong>대화가 위에서 아래로</strong> 읽히도록 {@code createdAt ASC}, 타이브레이크 {@code id ASC}.
+     * Slice: {@code limit = pageSize + 1} 로 다음 페이지 존재 여부를 판별합니다.
+     */
     @Override
     public Slice<Comment> findRepliesByRootComment(Long postId, Long rootCommentId, Pageable pageable) {
-        // Step 4 라이브 코딩 예정
-        return new SliceImpl<>(Collections.emptyList(), pageable, false);
+        List<Comment> content = queryFactory
+                .selectFrom(comment)
+                .join(comment.writer).fetchJoin()
+                .where(
+                        comment.post.id.eq(postId),
+                        comment.parent.id.eq(rootCommentId)
+                )
+                .orderBy(comment.createdAt.asc(), comment.id.asc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1L)
+                .fetch();
+
+        return toSlice(content, pageable);
     }
 
     private static Slice<Comment> toSlice(List<Comment> items, Pageable pageable) {

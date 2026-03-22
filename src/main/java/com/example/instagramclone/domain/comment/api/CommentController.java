@@ -39,6 +39,8 @@ public class CommentController {
 
     /**
      * 원댓글 목록 (무한 스크롤, 각 항목에 replyCount).
+     *
+     * <p>실제 정렬은 QueryDSL에서 {@code createdAt ASC, id ASC} 로 고정 — 댓글은 최신 피드와 달리 대화 순서가 자연스럽습니다.
      */
     @GetMapping("/api/posts/{postId}/comments")
     public ResponseEntity<ApiResponse<SliceResponse<CommentResponse>>> getRootComments(
@@ -47,13 +49,16 @@ public class CommentController {
             @RequestParam(name = "size", defaultValue = "20") int size,
             @LoginUser LoginUserInfoDto loginUser) {
 
-        Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
+        Pageable pageable = PageableUtil.createSafePageableAsc(page, size, "id");
         SliceResponse<CommentResponse> response = commentService.getRootComments(postId, pageable, loginUser.id());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     /**
-     * 특정 원댓글의 대댓글 목록 (더보기).
+     * 특정 원댓글의 대댓글 목록 (답글 더보기).
+     *
+     * <p>인스타그램 Graph API 의 {@code /{comment-id}/replies} 와 같이, 펼쳤을 때만 별도 요청으로 가져옵니다.
+     * 같은 {@code page} 를 올려 무한 스크롤합니다.
      */
     @GetMapping("/api/posts/{postId}/comments/{rootCommentId}/replies")
     public ResponseEntity<ApiResponse<SliceResponse<CommentResponse>>> getReplies(
@@ -63,7 +68,7 @@ public class CommentController {
             @RequestParam(name = "size", defaultValue = "10") int size,
             @LoginUser LoginUserInfoDto loginUser) {
 
-        Pageable pageable = PageableUtil.createSafePageableDesc(page, size, "id");
+        Pageable pageable = PageableUtil.createSafePageableAsc(page, size, "id");
         SliceResponse<CommentResponse> response = commentService.getReplies(postId, rootCommentId, pageable, loginUser.id());
         return ResponseEntity.ok(ApiResponse.success(response));
     }

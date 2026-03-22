@@ -91,4 +91,61 @@ class CommentRepositoryCustomImplTest {
         assertThat(map.get(rootA.getId())).isEqualTo(2L);
         assertThat(map.get(rootB.getId())).isNull();
     }
+
+    @Test
+    @DisplayName("existsRootCommentForReplies: 해당 게시글의 원댓글 id만 true")
+    void existsRootCommentForReplies_only_matching_root() {
+        Comment root = commentRepository.save(Comment.create(post, writer, "원댓", null));
+        Comment reply = commentRepository.save(Comment.create(post, writer, "대댓", root));
+
+        Post otherPost = postRepository.save(Post.builder()
+                .content("다른 글")
+                .writer(writer)
+                .build());
+        Comment rootOnOther = commentRepository.save(Comment.create(otherPost, writer, "다른글 원댓", null));
+
+        assertThat(commentRepository.existsRootCommentForReplies(post.getId(), root.getId())).isTrue();
+        assertThat(commentRepository.existsRootCommentForReplies(post.getId(), reply.getId())).isFalse();
+        assertThat(commentRepository.existsRootCommentForReplies(post.getId(), rootOnOther.getId())).isFalse();
+        assertThat(commentRepository.existsRootCommentForReplies(post.getId(), 99999L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("findRepliesByRootComment: parent_id 일치·시간순·Slice")
+    void findReplies_under_root_ordered_slice() {
+        Comment root = commentRepository.save(Comment.create(post, writer, "원댓", null));
+        Comment otherRoot = commentRepository.save(Comment.create(post, writer, "다른 원댓", null));
+        Comment r1 = commentRepository.save(Comment.create(post, writer, "대댓1", root));
+        Comment r2 = commentRepository.save(Comment.create(post, writer, "대댓2", root));
+        commentRepository.save(Comment.create(post, writer, "다른 스레드", otherRoot));
+
+        Pageable pageable = PageRequest.of(0, 2);
+
+        Slice<Comment> slice = commentRepository.findRepliesByRootComment(post.getId(), root.getId(), pageable);
+
+        assertThat(slice.getContent()).hasSize(2);
+        assertThat(slice.getContent().get(0).getId()).isEqualTo(r1.getId());
+        assertThat(slice.getContent().get(1).getId()).isEqualTo(r2.getId());
+        assertThat(slice.hasNext()).isFalse();
+
+        Slice<Comment> page2 = commentRepository.findRepliesByRootComment(
+                post.getId(), root.getId(), PageRequest.of(1, 1));
+        assertThat(page2.getContent()).hasSize(1);
+        assertThat(page2.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("findRepliesByRootComment: size+1로 hasNext 판별")
+    void findReplies_hasNext_when_more_than_page() {
+        Comment root = commentRepository.save(Comment.create(post, writer, "원댓", null));
+        commentRepository.save(Comment.create(post, writer, "대댓1", root));
+        commentRepository.save(Comment.create(post, writer, "대댓2", root));
+        commentRepository.save(Comment.create(post, writer, "대댓3", root));
+
+        Slice<Comment> slice = commentRepository.findRepliesByRootComment(
+                post.getId(), root.getId(), PageRequest.of(0, 2));
+
+        assertThat(slice.getContent()).hasSize(2);
+        assertThat(slice.hasNext()).isTrue();
+    }
 }

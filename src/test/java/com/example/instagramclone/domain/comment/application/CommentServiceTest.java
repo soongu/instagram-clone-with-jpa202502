@@ -37,6 +37,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -44,7 +45,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 /**
- * {@link CommentService#createComment} 단위 테스트 (Day 14 Step 2).
+ * {@link CommentService} 단위 테스트 (Day 14 Step 2·3·4).
  *
  * <p>검증 시나리오:
  * <ul>
@@ -330,6 +331,86 @@ class CommentServiceTest {
 
             then(commentRepository).should().countRepliesByRootCommentIds(
                     argThat(ids -> ids.size() == 2 && ids.contains(100L) && ids.contains(200L)));
+        }
+    }
+
+    /**
+     * {@link CommentService#getReplies} 단위 테스트 (Day 14 Step 4).
+     * QueryDSL 본문은 {@link com.example.instagramclone.domain.comment.infrastructure.CommentRepositoryCustomImplTest} 에서 검증.
+     */
+    @Nested
+    @DisplayName("getReplies()")
+    class GetReplies {
+
+        @Test
+        @DisplayName("실패 - 게시글이 없으면 PostException — 선검증·대댓글 조회 없음")
+        void fail_when_post_missing() {
+            given(postService.getPostByIdOrThrow(POST_ID))
+                    .willThrow(new PostException(PostErrorCode.POST_NOT_FOUND));
+            Pageable pageable = PageRequest.of(0, 5);
+
+            assertThatThrownBy(() -> commentService.getReplies(POST_ID, 100L, pageable, MEMBER_ID))
+                    .isInstanceOf(PostException.class);
+
+            then(commentRepository).should(never()).existsRootCommentForReplies(anyLong(), anyLong());
+            then(commentRepository).should(never()).findRepliesByRootComment(anyLong(), anyLong(), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("실패 - rootCommentId가 해당 글의 원댓글이 아니면 CommentException(COMMENT_NOT_FOUND)")
+        void fail_when_root_invalid() {
+            Post post = buildPost(POST_ID, buildMember(2L, "author"));
+            given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
+            given(commentRepository.existsRootCommentForReplies(POST_ID, 999L)).willReturn(false);
+            Pageable pageable = PageRequest.of(0, 5);
+
+            assertThatThrownBy(() -> commentService.getReplies(POST_ID, 999L, pageable, MEMBER_ID))
+                    .isInstanceOf(CommentException.class)
+                    .hasMessage(CommentErrorCode.COMMENT_NOT_FOUND.getMessage());
+
+            then(commentRepository).should(never()).findRepliesByRootComment(anyLong(), anyLong(), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("성공 - 대댓글 없으면 빈 SliceResponse")
+        void success_empty() {
+            Post post = buildPost(POST_ID, buildMember(2L, "author"));
+            given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
+            given(commentRepository.existsRootCommentForReplies(POST_ID, 100L)).willReturn(true);
+            Pageable pageable = PageRequest.of(0, 5);
+            given(commentRepository.findRepliesByRootComment(POST_ID, 100L, pageable))
+                    .willReturn(new SliceImpl<>(List.of(), pageable, false));
+
+            SliceResponse<CommentResponse> response = commentService.getReplies(POST_ID, 100L, pageable, MEMBER_ID);
+
+            assertThat(response.hasNext()).isFalse();
+            assertThat(response.items()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("성공 - 대댓글은 CommentResponse.from → replyCount null")
+        void success_replyCount_null() {
+            Member writer = buildMember(MEMBER_ID, "writer");
+            Post post = buildPost(POST_ID, writer);
+            given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
+            given(commentRepository.existsRootCommentForReplies(POST_ID, 50L)).willReturn(true);
+
+            Comment root = Comment.create(post, writer, "원댓", null);
+            ReflectionTestUtils.setField(root, "id", 50L);
+            Comment reply = Comment.create(post, writer, "대댓 본문", root);
+            ReflectionTestUtils.setField(reply, "id", 51L);
+            ReflectionTestUtils.setField(reply, "createdAt", LocalDateTime.of(2025, 3, 22, 12, 0, 0));
+
+            Pageable pageable = PageRequest.of(0, 10);
+            given(commentRepository.findRepliesByRootComment(POST_ID, 50L, pageable))
+                    .willReturn(new SliceImpl<>(List.of(reply), pageable, true));
+
+            SliceResponse<CommentResponse> response = commentService.getReplies(POST_ID, 50L, pageable, MEMBER_ID);
+
+            assertThat(response.hasNext()).isTrue();
+            assertThat(response.items()).hasSize(1);
+            assertThat(response.items().get(0).replyCount()).isNull();
+            assertThat(response.items().get(0).content()).isEqualTo("대댓 본문");
         }
     }
 }

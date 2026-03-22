@@ -25,4 +25,15 @@ public class PageableUtil {
         // 프론트엔드 페이지는 1부터 시작하지만, Spring Data JPA는 0-index 기반이므로 1을 빼서 PageRequest 생성
         return PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, sortProperty));
     }
+
+    /**
+     * 댓글·대댓글처럼 <strong>시간순(오래된 것 먼저)</strong>으로 읽는 목록용 Pageable.
+     * <p>실제 SQL 정렬은 QueryDSL에서 {@code createdAt ASC, id ASC} 로 고정하는 편이 일반적이며,
+     * 여기서 만든 {@link Pageable#getSort()} 는 오프셋·페이지 크기 계산에 쓰입니다.
+     */
+    public static Pageable createSafePageableAsc(int page, int size, String sortProperty) {
+        int safePage = Math.max(page, MIN_PAGE);
+        int safeSize = (size >= MIN_SIZE && size <= MAX_SIZE) ? size : 5;
+        return PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.ASC, sortProperty));
+    }
 }
