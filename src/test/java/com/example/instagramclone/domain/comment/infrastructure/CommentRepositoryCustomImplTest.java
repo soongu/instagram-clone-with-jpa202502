@@ -17,9 +17,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
-import java.util.Map;
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -59,37 +56,27 @@ class CommentRepositoryCustomImplTest {
     }
 
     @Test
-    @DisplayName("findRootCommentsByPostId: parent가 null인 행만, 시간순(createdAt asc, id asc)")
-    void findRootComments_only_parent_null_ordered() {
-        // given: 원댓글 2개 + 대댓글 1개(첫 원댓글에 달림)
+    @DisplayName("findRootCommentsWithReplyCountByPostId: 원댓만·시간순 + 상관 서브쿼리 replyCount")
+    void findRootComments_with_reply_count_subquery() {
+        // given: 원댓글 2개 + 대댓글 2개(첫 원댓에만)
         Comment rootOld = commentRepository.save(Comment.create(post, writer, "옛날 원댓", null));
         Comment rootNew = commentRepository.save(Comment.create(post, writer, "최신 원댓", null));
-        commentRepository.save(Comment.create(post, writer, "대댓", rootOld));
+        commentRepository.save(Comment.create(post, writer, "대댓1", rootOld));
+        commentRepository.save(Comment.create(post, writer, "대댓2", rootOld));
 
         Pageable pageable = PageRequest.of(0, 10);
 
         // when
-        Slice<Comment> slice = commentRepository.findRootCommentsByPostId(post.getId(), pageable);
+        Slice<RootCommentListRow> slice =
+                commentRepository.findRootCommentsWithReplyCountByPostId(post.getId(), pageable);
 
-        // then: 대댓글은 제외, 2건만·먼저 달린 원댓이 위(시간순)
+        // then: 대댓 행은 목록에 안 나옴, replyCount는 서브쿼리로 2 / 0
         assertThat(slice.getContent()).hasSize(2);
-        assertThat(slice.getContent().get(0).getId()).isEqualTo(rootOld.getId());
-        assertThat(slice.getContent().get(1).getId()).isEqualTo(rootNew.getId());
+        assertThat(slice.getContent().get(0).comment().getId()).isEqualTo(rootOld.getId());
+        assertThat(slice.getContent().get(0).replyCount()).isEqualTo(2L);
+        assertThat(slice.getContent().get(1).comment().getId()).isEqualTo(rootNew.getId());
+        assertThat(slice.getContent().get(1).replyCount()).isZero();
         assertThat(slice.hasNext()).isFalse();
-    }
-
-    @Test
-    @DisplayName("countRepliesByRootCommentIds: 원댓글별 대댓글 수, 없으면 맵에 키 없음")
-    void countReplies_batch() {
-        Comment rootA = commentRepository.save(Comment.create(post, writer, "A", null));
-        Comment rootB = commentRepository.save(Comment.create(post, writer, "B", null));
-        commentRepository.save(Comment.create(post, writer, "A-대1", rootA));
-        commentRepository.save(Comment.create(post, writer, "A-대2", rootA));
-
-        Map<Long, Long> map = commentRepository.countRepliesByRootCommentIds(Set.of(rootA.getId(), rootB.getId()));
-
-        assertThat(map.get(rootA.getId())).isEqualTo(2L);
-        assertThat(map.get(rootB.getId())).isNull();
     }
 
     @Test

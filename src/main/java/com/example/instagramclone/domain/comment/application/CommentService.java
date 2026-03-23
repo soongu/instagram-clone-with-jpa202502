@@ -7,6 +7,7 @@ import com.example.instagramclone.domain.comment.api.CommentCreateRequest;
 import com.example.instagramclone.domain.comment.api.CommentResponse;
 import com.example.instagramclone.domain.comment.domain.Comment;
 import com.example.instagramclone.domain.comment.domain.CommentRepository;
+import com.example.instagramclone.domain.comment.infrastructure.RootCommentListRow;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.post.application.PostService;
@@ -19,9 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 댓글 유스케이스 (작성·조회).
@@ -102,8 +100,8 @@ public class CommentService {
      *
      * <ol>
      *   <li>게시글이 없으면 {@link PostService#getPostByIdOrThrow(Long)} 에서 예외.</li>
-     *   <li>QueryDSL로 원댓글만 Slice 조회 ({@code parent IS NULL}).</li>
-     *   <li>현재 페이지 원댓글 id들에 대해 대댓글 수를 한 번에 집계해 N+1 방지.</li>
+     *   <li>QueryDSL로 원댓글 Slice + {@code replyCount} 를 <strong>한 쿼리</strong>(상관 서브쿼리 {@code COUNT})로 조회 —
+     *       {@link com.example.instagramclone.domain.comment.infrastructure.CommentRepositoryCustom}.</li>
      *   <li>각 행을 {@link CommentResponse#fromRootListItem(Comment, long)} 로 변환.</li>
      * </ol>
      *
@@ -113,21 +111,16 @@ public class CommentService {
         // 1) 게시글 존재 검증 (없으면 PostException)
         postService.getPostByIdOrThrow(postId);
 
-        // 2) 원댓글 Slice (작성자 fetchJoin 은 리포지토리 구현체에서 처리)
-        Slice<Comment> slice = commentRepository.findRootCommentsByPostId(postId, pageable);
+        // 2) 원댓글 Slice + replyCount (리포지토리에서 상관 서브쿼리로 1회 조회)
+        Slice<RootCommentListRow> slice = commentRepository.findRootCommentsWithReplyCountByPostId(postId, pageable);
 
-        List<Comment> roots = slice.getContent();
-        if (roots.isEmpty()) {
+        List<RootCommentListRow> rows = slice.getContent();
+        if (rows.isEmpty()) {
             return SliceResponse.of(slice.hasNext(), Collections.emptyList());
         }
 
-        // 3) 이 페이지에 나온 원댓글 id → 대댓글 수 (배치 집계)
-        Set<Long> rootIds = roots.stream().map(Comment::getId).collect(Collectors.toSet());
-        Map<Long, Long> replyCountByRootId = commentRepository.countRepliesByRootCommentIds(rootIds);
-
-        // 4) DTO 조립 (집계 맵에 없으면 해당 원댓글의 대댓글 0개)
-        List<CommentResponse> items = roots.stream()
-                .map(c -> CommentResponse.fromRootListItem(c, replyCountByRootId.getOrDefault(c.getId(), 0L)))
+        List<CommentResponse> items = rows.stream()
+                .map(r -> CommentResponse.fromRootListItem(r.comment(), r.replyCount()))
                 .toList();
 
         return SliceResponse.of(slice.hasNext(), items);

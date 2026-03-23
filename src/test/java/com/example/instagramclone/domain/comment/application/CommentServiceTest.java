@@ -11,6 +11,7 @@ import com.example.instagramclone.domain.comment.api.CommentCreateRequest;
 import com.example.instagramclone.domain.comment.api.CommentResponse;
 import com.example.instagramclone.domain.comment.domain.Comment;
 import com.example.instagramclone.domain.comment.domain.CommentRepository;
+import com.example.instagramclone.domain.comment.infrastructure.RootCommentListRow;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.post.application.PostService;
@@ -31,15 +32,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anySet;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -285,24 +283,24 @@ class CommentServiceTest {
         }
 
         @Test
-        @DisplayName("성공 - 원댓글이 없으면 빈 SliceResponse, replyCount 집계 호출 없음")
-        void success_empty_no_count_query() {
+        @DisplayName("성공 - 원댓글이 없으면 빈 SliceResponse (리포지토리 1회)")
+        void success_empty_single_repo_call() {
             Post post = buildPost(POST_ID, buildMember(2L, "author"));
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
             Pageable pageable = PageRequest.of(0, 5);
-            given(commentRepository.findRootCommentsByPostId(POST_ID, pageable))
+            given(commentRepository.findRootCommentsWithReplyCountByPostId(POST_ID, pageable))
                     .willReturn(new SliceImpl<>(List.of(), pageable, false));
 
             SliceResponse<CommentResponse> response = commentService.getRootComments(POST_ID, pageable, MEMBER_ID);
 
             assertThat(response.hasNext()).isFalse();
             assertThat(response.items()).isEmpty();
-            then(commentRepository).should(never()).countRepliesByRootCommentIds(anySet());
+            then(commentRepository).should().findRootCommentsWithReplyCountByPostId(POST_ID, pageable);
         }
 
         @Test
-        @DisplayName("성공 - 원댓글 2건, 배치 집계 replyCount 반영 (0건 포함)")
-        void success_merges_reply_counts() {
+        @DisplayName("성공 - 원댓글 2건, RootCommentListRow의 replyCount 반영 (0건 포함)")
+        void success_maps_reply_counts_from_row() {
             Member writer = buildMember(MEMBER_ID, "writer");
             Post post = buildPost(POST_ID, writer);
             given(postService.getPostByIdOrThrow(POST_ID)).willReturn(post);
@@ -316,11 +314,13 @@ class CommentServiceTest {
             ReflectionTestUtils.setField(root2, "createdAt", LocalDateTime.of(2025, 3, 22, 11, 0));
 
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Comment> slice = new SliceImpl<>(List.of(root1, root2), pageable, false);
-            given(commentRepository.findRootCommentsByPostId(POST_ID, pageable)).willReturn(slice);
-
-            given(commentRepository.countRepliesByRootCommentIds(anySet()))
-                    .willReturn(Map.of(100L, 2L, 200L, 0L));
+            Slice<RootCommentListRow> slice = new SliceImpl<>(
+                    List.of(
+                            new RootCommentListRow(root1, 2L),
+                            new RootCommentListRow(root2, 0L)),
+                    pageable,
+                    false);
+            given(commentRepository.findRootCommentsWithReplyCountByPostId(POST_ID, pageable)).willReturn(slice);
 
             SliceResponse<CommentResponse> response = commentService.getRootComments(POST_ID, pageable, MEMBER_ID);
 
@@ -329,8 +329,7 @@ class CommentServiceTest {
             assertThat(response.items().get(0).replyCount()).isEqualTo(2);
             assertThat(response.items().get(1).replyCount()).isZero();
 
-            then(commentRepository).should().countRepliesByRootCommentIds(
-                    argThat(ids -> ids.size() == 2 && ids.contains(100L) && ids.contains(200L)));
+            then(commentRepository).should().findRootCommentsWithReplyCountByPostId(POST_ID, pageable);
         }
     }
 
