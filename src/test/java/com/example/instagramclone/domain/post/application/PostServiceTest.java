@@ -6,6 +6,7 @@ import com.example.instagramclone.core.exception.PostException;
 import com.example.instagramclone.core.util.FileStore;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
+import com.example.instagramclone.domain.post.api.PostDetailResponse;
 import com.example.instagramclone.domain.post.api.PostCreateRequest;
 import com.example.instagramclone.domain.post.api.PostImageResponse;
 import com.example.instagramclone.domain.post.api.PostResponse;
@@ -15,6 +16,7 @@ import com.example.instagramclone.domain.post.domain.PostImageRepository;
 import com.example.instagramclone.domain.post.domain.PostRepository;
 import com.example.instagramclone.domain.post.infrastructure.PostFeedRow;
 import com.example.instagramclone.domain.post.infrastructure.PostMapper;
+import com.example.instagramclone.domain.post.infrastructure.PrevNextPostIds;
 import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -437,5 +440,70 @@ class PostServiceTest {
             assertThat(postResponse.likeStatus().likeCount()).isEqualTo(42);
             assertThat(postResponse.commentCount()).isZero();
         }
+    }
+
+    // ============================================================
+    // getPostDetail()
+    // ============================================================
+
+    @Nested
+    @DisplayName("getPostDetail()")
+    class GetPostDetail {
+
+        @Test
+        @DisplayName("성공 - context=profile일 때 prev/next와 이미지 정렬이 매핑된다")
+        void success_profile_context_prevNext_and_images_sorted() {
+            Long postId = 100L;
+            Long writerId = 10L;
+
+            Member writer = buildMockMember(writerId, "writer_user");
+            ReflectionTestUtils.setField(writer, "profileImageUrl", "https://cdn.example.com/writer.jpg");
+
+            Post post = buildMockPost(postId, "post content", writer);
+
+            PostImage img2 = PostImage.builder().post(post).imageUrl("/img/2.jpg").imgOrder(2).build();
+            PostImage img1 = PostImage.builder().post(post).imageUrl("/img/1.jpg").imgOrder(1).build();
+
+            given(postRepository.findById(postId)).willReturn(Optional.of(post));
+            given(postImageRepository.findByPostIn(List.of(post))).willReturn(List.of(img2, img1)); // 반환은 역순
+            given(postRepository.findPrevAndNextPostIdByProfile(writerId, postId))
+                    .willReturn(new PrevNextPostIds(501L, 502L));
+
+            PostDetailResponse response = postService.getPostDetail(postId, "profile");
+
+            assertThat(response.postId()).isEqualTo(postId);
+            assertThat(response.content()).isEqualTo("post content");
+            assertThat(response.writer().memberId()).isEqualTo(writerId);
+            assertThat(response.writer().username()).isEqualTo("writer_user");
+
+            // imgOrder 기준 오름차순 정렬 검증
+            assertThat(response.imageUrls()).containsExactly("/img/1.jpg", "/img/2.jpg");
+
+            assertThat(response.prevPostId()).isEqualTo(501L);
+            assertThat(response.nextPostId()).isEqualTo(502L);
+
+            then(postRepository).should().findPrevAndNextPostIdByProfile(writerId, postId);
+        }
+
+        @Test
+        @DisplayName("성공 - context가 profile이 아니면 prev/next는 null이고 네비게이션 쿼리는 호출되지 않는다")
+        void success_non_profile_context_prevNext_null_and_no_call() {
+            Long postId = 100L;
+            Long writerId = 10L;
+
+            Member writer = buildMockMember(writerId, "writer_user");
+            Post post = buildMockPost(postId, "post content", writer);
+
+            given(postRepository.findById(postId)).willReturn(Optional.of(post));
+            given(postImageRepository.findByPostIn(any())).willReturn(Collections.emptyList());
+
+            PostDetailResponse response = postService.getPostDetail(postId, "feed");
+
+            assertThat(response.prevPostId()).isNull();
+            assertThat(response.nextPostId()).isNull();
+            then(postRepository).should(never()).findPrevAndNextPostIdByProfile(anyLong(), anyLong());
+        }
+
+        // memberId 파라미터가 없어졌기 때문에 null 케이스 테스트는 제거합니다.
     }
 }

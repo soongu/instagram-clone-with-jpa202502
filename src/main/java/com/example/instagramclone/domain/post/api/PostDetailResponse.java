@@ -2,8 +2,7 @@ package com.example.instagramclone.domain.post.api;
 
 import com.example.instagramclone.domain.member.api.MemberSummary;
 import com.example.instagramclone.domain.post.domain.Post;
-import lombok.Builder;
-import lombok.Getter;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.List;
 
@@ -16,28 +15,28 @@ import java.util.List;
  * <li>댓글 목록은 포함하지 않음 (별도 API 호출 전제)</li>
  * <li>{@code prevPostId}, {@code nextPostId}: 진입 컨텍스트에 따른 네비게이션 식별자</li>
  * </ul>
+ *
+ * <p>record로 변환 후 접근자는 {@code postId()}, {@code content()}, {@code writer()} 형태가 됩니다.
  */
-@Getter
-@Builder
-public class PostDetailResponse {
-
-    private Long postId;
-    private String content;
-    private MemberSummary writer;
-    private List<String> imageUrls;
-
-    // 네비게이션 옵션 필드 (컨텍스트가 없거나 맨 앞/뒤면 null)
-    private Long prevPostId;
-    private Long nextPostId;
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record PostDetailResponse(
+        Long postId,
+        String content,
+        MemberSummary writer,
+        List<String> imageUrls,
+        // 네비게이션 옵션 필드 (컨텍스트가 없거나 맨 앞/뒤면 null)
+        Long prevPostId,
+        Long nextPostId
+) {
 
     public static PostDetailResponse of(Post post, MemberSummary writer, List<String> imageUrls, Long prevPostId, Long nextPostId) {
-        return PostDetailResponse.builder()
-                .postId(post.getId())
-                .content(post.getContent())
-                .writer(writer)
-                .imageUrls(imageUrls)
-                .prevPostId(prevPostId)
-                .nextPostId(nextPostId)
-                .build();
+        return new PostDetailResponse(
+                post.getId(),
+                post.getContent(),
+                writer,
+                imageUrls,
+                prevPostId,
+                nextPostId
+        );
     }
 }

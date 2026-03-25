@@ -31,8 +31,13 @@ public interface PostRepositoryCustom {
      */
     Slice<PostFeedRow> findFeedWithLiked(Pageable pageable, Long loginMemberId);
 
-    // TODO: (Day 15) 특정 유저의 게시글 중 이전/다음 글 ID 조회하기
-    Long findPrevPostIdByProfile(Long memberId, Long postId);
-
-    Long findNextPostIdByProfile(Long memberId, Long postId);
+    /**
+     * 특정 회원 게시물 목록(최신순 = id 내림차순) 기준 이전·다음 글 ID를 한 번에 조회합니다.
+     * <p>prev: 같은 회원 글 중 현재 id보다 큰 id 중 최소값(더 최신), next: 더 작은 id 중 최대값(더 예전).
+     * <p>구현은 DB 왕복 1회(단일 {@code SELECT}, 스칼라 서브쿼리 2개)이며,
+     * {@code posts(member_id, id)} 복합 인덱스가 있으면 서브쿼리가 범위 스캔 후 조기 종료에 유리합니다.
+     * <p>바깥 {@code FROM posts WHERE id = ?}는 행 앵커용이므로, {@code postId}가 없으면 {@code null}을 돌려줍니다.
+     * 상세 조회 등에서 게시물을 먼저 로드한 뒤 호출하는 전제에 맞춥니다.
+     */
+    PrevNextPostIds findPrevAndNextPostIdByProfile(Long memberId, Long postId);
 }

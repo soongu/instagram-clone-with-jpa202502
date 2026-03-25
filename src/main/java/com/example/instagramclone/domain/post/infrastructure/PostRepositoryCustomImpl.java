@@ -1,9 +1,6 @@
 package com.example.instagramclone.domain.post.infrastructure;
 
 import com.example.instagramclone.domain.post.api.ProfilePostResponse;
-import com.example.instagramclone.domain.post.domain.Post;
-import com.example.instagramclone.domain.post.domain.QPost;
-import com.example.instagramclone.domain.post.domain.QPostLike;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -133,16 +130,27 @@ public class PostRepositoryCustomImpl implements PostRepositoryCustom {
     }
 
     @Override
-    public Long findPrevPostIdByProfile(Long memberId, Long postId) {
-        // TODO: (Day 15) QueryDSL을 사용하여 현재 postId 보다 이전에 작성된 최신 글의 ID 하나를 찾는 쿼리를 작성하세요.
-        // Hint: p.id > postId ORDER BY p.id ASC LIMIT 1
-        return null;
-    }
+    public PrevNextPostIds findPrevAndNextPostIdByProfile(Long memberId, Long postId) {
+        Long prevPostId = queryFactory
+                .select(post.id)
+                .from(post)
+                .where(
+                        post.writer.id.eq(memberId),
+                        post.id.gt(postId)
+                )
+                .orderBy(post.id.asc())
+                .fetchFirst();
 
-    @Override
-    public Long findNextPostIdByProfile(Long memberId, Long postId) {
-        // TODO: (Day 15) QueryDSL을 사용하여 현재 postId 보다 나중에 작성된 가장 오래된 글의 ID 하나를 찾는 쿼리를 작성하세요.
-        // Hint: p.id < postId ORDER BY p.id DESC LIMIT 1
-        return null;
+        Long nextPostId = queryFactory
+                .select(post.id)
+                .from(post)
+                .where(
+                        post.writer.id.eq(memberId),
+                        post.id.lt(postId)
+                )
+                .orderBy(post.id.desc())
+                .fetchFirst();
+
+        return new PrevNextPostIds(prevPostId, nextPostId);
     }
 }

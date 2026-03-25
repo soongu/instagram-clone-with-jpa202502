@@ -4,6 +4,7 @@ import com.example.instagramclone.core.common.dto.SliceResponse;
 import com.example.instagramclone.core.exception.PostErrorCode;
 import com.example.instagramclone.core.exception.PostException;
 import com.example.instagramclone.core.util.FileStore;
+import com.example.instagramclone.domain.member.api.MemberSummary;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.post.api.PostCreateRequest;
@@ -16,6 +17,8 @@ import com.example.instagramclone.domain.post.domain.PostImageRepository;
 import com.example.instagramclone.domain.post.domain.PostRepository;
 import com.example.instagramclone.domain.post.infrastructure.PostFeedRow;
 import com.example.instagramclone.domain.post.infrastructure.PostMapper;
+import com.example.instagramclone.domain.post.infrastructure.PrevNextPostIds;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -28,7 +31,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -141,13 +143,32 @@ public class PostService {
      * Day 15 Live Coding: 피드 상세 페이지 조회
      * 컨텍스트에 따른 선택적 네비게이션 구조 포함
      */
-    public PostDetailResponse getPostDetail(Long postId, String context, Long memberId) {
-        // TODO: (Day 15)
+    public PostDetailResponse getPostDetail(Long postId, String context) {
         // 1. Post 엔티티와 연관된 이미지를 찾고, 작성자(writer) 요약 정보를 조립하세요.
-        // 2. context 파라미터가 "profile" 이고 memberId가 유효할 때,
-        //    PostRepository 에 새로 만든 메서드를 호출하여 prevPostId, nextPostId 를 검색하세요.
-        // 3. PostDetailResponse DTO 로 반환하세요.
-        return null;
+        Post post = getPostByIdOrThrow(postId);
+        
+        List<String> imageUrls = postImageRepository.findByPostIn(List.of(post)).stream()
+                .sorted(Comparator.comparing(PostImage::getImgOrder))
+                .map(PostImage::getImageUrl)
+                .toList();
+
+        MemberSummary writer = MemberSummary.builder()
+                .memberId(post.getWriter().getId())
+                .username(post.getWriter().getUsername())
+                .profileImageUrl(post.getWriter().getProfileImageUrl())
+                .build();
+
+        // 2. context 파라미터가 "profile" 일 때,
+        //    해당 게시물의 writer를 기준으로 prevPostId, nextPostId 를 검색하세요.
+        PrevNextPostIds prevNextPostIds = null;
+        if ("profile".equals(context)) {
+            prevNextPostIds = postRepository.findPrevAndNextPostIdByProfile(post.getWriter().getId(), postId);
+        }
+
+        Long prevPostId = prevNextPostIds != null ? prevNextPostIds.prevPostId() : null;
+        Long nextPostId = prevNextPostIds != null ? prevNextPostIds.nextPostId() : null;
+        
+        return PostDetailResponse.of(post, writer, imageUrls, prevPostId, nextPostId);
     }
 
     /**

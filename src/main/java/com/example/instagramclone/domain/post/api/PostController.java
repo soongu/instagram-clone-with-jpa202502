@@ -90,10 +90,8 @@ public class PostController {
     @GetMapping("/api/posts/{postId}")
     public ResponseEntity<ApiResponse<PostDetailResponse>> getPostDetail(
             @PathVariable Long postId,
-            @RequestParam(required = false) String context,   // 예: "profile" 또는 "feed"
-            @RequestParam(required = false) Long memberId) {  // 프로필 주인의 ID
-
-        PostDetailResponse response = postService.getPostDetail(postId, context, memberId);
+            @RequestParam(required = false) String context) {   // 예: "profile" 또는 "feed"
+        PostDetailResponse response = postService.getPostDetail(postId, context);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
