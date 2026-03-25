@@ -1,8 +1,8 @@
 package com.example.instagramclone.domain.member.application;
 
-import com.example.instagramclone.domain.follow.application.FollowService;
 import com.example.instagramclone.domain.member.api.MemberProfileResponse;
 import com.example.instagramclone.domain.member.domain.Member;
+import com.example.instagramclone.domain.member.domain.MemberRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,7 +14,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class MemberProfileServiceTest {
@@ -23,7 +22,7 @@ class MemberProfileServiceTest {
     private MemberService memberService;
 
     @Mock
-    private FollowService followService;
+    private MemberRepository memberRepository;
 
     @InjectMocks
     private MemberProfileService memberProfileService;
@@ -51,13 +50,16 @@ class MemberProfileServiceTest {
             Member me = buildMockMember(1L, "me");
 
             given(memberService.findByUsername("me")).willReturn(me);
-            given(memberService.getReferenceById(1L)).willReturn(loginMember);
-            given(followService.isFollowing(loginMember, me)).willReturn(false);
+            given(memberRepository.getProfileHeader(me.getId(), loginMember.getId()))
+                    .willReturn(MemberProfileResponse.of(me, 10L, 20L, 30L, false, true));
 
             MemberProfileResponse response = memberProfileService.getProfileByUsername(loginMember.getId(), "me");
 
             assertThat(response.memberId()).isEqualTo(1L);
             assertThat(response.username()).isEqualTo("me");
+            assertThat(response.followerCount()).isEqualTo(10L);
+            assertThat(response.followingCount()).isEqualTo(20L);
+            assertThat(response.postCount()).isEqualTo(30L);
             assertThat(response.isFollowing()).isFalse();
             assertThat(response.isCurrentUser()).isTrue();
         }
@@ -66,39 +68,41 @@ class MemberProfileServiceTest {
         @DisplayName("성공 - 다른 유저 프로필이면 FollowService.isFollowing 결과를 응답에 반영")
         void success_other_profile_uses_follow_service() {
             Long loginMemberId = 1L;
-            Member loginMember = buildMockMember(loginMemberId, "me");
             Member targetMember = buildMockMember(2L, "target");
 
             given(memberService.findByUsername("target")).willReturn(targetMember);
-            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
-            given(followService.isFollowing(loginMember, targetMember)).willReturn(true);
+            given(memberRepository.getProfileHeader(targetMember.getId(), loginMemberId))
+                    .willReturn(MemberProfileResponse.of(targetMember, 11L, 22L, 33L, true, false));
 
             MemberProfileResponse response = memberProfileService.getProfileByUsername(loginMemberId, "target");
 
             assertThat(response.memberId()).isEqualTo(2L);
             assertThat(response.username()).isEqualTo("target");
             assertThat(response.profileImageUrl()).isEqualTo("/profiles/target.jpg");
+            assertThat(response.followerCount()).isEqualTo(11L);
+            assertThat(response.followingCount()).isEqualTo(22L);
+            assertThat(response.postCount()).isEqualTo(33L);
             assertThat(response.isFollowing()).isTrue();
             assertThat(response.isCurrentUser()).isFalse();
-
-            then(followService).should().isFollowing(loginMember, targetMember);
         }
 
         @Test
         @DisplayName("성공 - username 기반으로 프로필 헤더를 조회한다")
         void success_profile_header_by_username() {
             Long loginMemberId = 1L;
-            Member loginMember = buildMockMember(loginMemberId, "me");
             Member targetMember = buildMockMember(2L, "target");
 
             given(memberService.findByUsername("target")).willReturn(targetMember);
-            given(memberService.getReferenceById(loginMemberId)).willReturn(loginMember);
-            given(followService.isFollowing(loginMember, targetMember)).willReturn(true);
+            given(memberRepository.getProfileHeader(targetMember.getId(), loginMemberId))
+                    .willReturn(MemberProfileResponse.of(targetMember, 1L, 2L, 3L, true, false));
 
             MemberProfileResponse response = memberProfileService.getProfileByUsername(loginMemberId, "target");
 
             assertThat(response.memberId()).isEqualTo(2L);
             assertThat(response.username()).isEqualTo("target");
+            assertThat(response.followerCount()).isEqualTo(1L);
+            assertThat(response.followingCount()).isEqualTo(2L);
+            assertThat(response.postCount()).isEqualTo(3L);
             assertThat(response.isFollowing()).isTrue();
             assertThat(response.isCurrentUser()).isFalse();
         }

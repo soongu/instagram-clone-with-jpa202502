@@ -1,6 +1,6 @@
 package com.example.instagramclone.domain.post.infrastructure;
 
-import com.example.instagramclone.domain.post.api.ProfilePostResponse;
+import com.example.instagramclone.domain.post.domain.Post;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -44,10 +44,23 @@ public class PostRepositoryCustomImpl implements PostRepositoryCustom {
      *   이미지 조회는 서비스 레이어에서 IN 쿼리로 별도 처리합니다.
      */
     @Override
-    public Slice<ProfilePostResponse> findAllByWriterId(Long writerId, Pageable pageable) {
-        // TODO: (Day 15) QueryDSL의 transform 기능을 활용해 게시글 목록과 좋아요 수, 댓글 수 집계를 한 번에 처리하세요.
-        // 결과는 ProfilePostResponse 로 조립하여 Slice 로 반환해야 합니다.
-        return new SliceImpl<>(Collections.emptyList(), pageable, false);
+    public Slice<Post> findAllByWriterId(Long writerId, Pageable pageable) {
+        // 최신순 = id DESC 기준 페이징 (+1 조회로 hasNext 계산)
+        List<Post> posts = queryFactory
+                .selectFrom(post)
+                .where(post.writer.id.eq(writerId))
+                .orderBy(post.id.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1L)
+                .fetch();
+
+        boolean hasNext = posts.size() > pageable.getPageSize();
+        if (hasNext) {
+            posts = posts.subList(0, pageable.getPageSize());
+        }
+
+        // Slice는 content가 빈 경우에도 hasNext=false가 자연스럽습니다.
+        return new SliceImpl<>(posts == null ? Collections.emptyList() : posts, pageable, hasNext);
     }
 
     /**

@@ -171,17 +171,7 @@ public class PostService {
         return PostDetailResponse.of(post, writer, imageUrls, prevPostId, nextPostId);
     }
 
-    /**
-     * 특정 회원의 프로필 게시글 목록 조회.
-     *
-     * 메인 피드와 비슷하지만, liked 정보 없이
-     * "프로필 그리드"에 필요한 DTO(ProfilePostResponse)로 변환한다.
-     */
-    public SliceResponse<ProfilePostResponse> getMemberPosts(Long memberId, Pageable pageable) {
-        Slice<ProfilePostResponse> slice = postRepository.findAllByWriterId(memberId, pageable);
-        return SliceResponse.of(slice.hasNext(), slice.getContent());
-    }
-
+    
     /**
      * username 기반 프로필 게시글 목록 조회.
      *
@@ -190,7 +180,20 @@ public class PostService {
      */
     public SliceResponse<ProfilePostResponse> getMemberPostsByUsername(String username, Pageable pageable) {
         Member member = memberService.findByUsername(username);
-        return getMemberPosts(member.getId(), pageable);
+        Slice<Post> slice = postRepository.findAllByWriterId(member.getId(), pageable);
+        List<Post> posts = slice.getContent();
+
+        if (posts.isEmpty()) {
+            return SliceResponse.of(slice.hasNext(), Collections.emptyList());
+        }
+
+        // 썸네일/다중이미지/likeCount 조립은 서비스에서 담당
+        Map<Post, List<PostImage>> imageMap = groupImagesByPost(posts);
+        List<ProfilePostResponse> responses = posts.stream()
+                .map(p -> postMapper.toProfilePostResponse(p, getSortedImages(p, imageMap)))
+                .toList();
+
+        return SliceResponse.of(slice.hasNext(), responses);
     }
 
 

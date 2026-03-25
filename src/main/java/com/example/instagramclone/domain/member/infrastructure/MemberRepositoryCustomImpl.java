@@ -3,12 +3,21 @@ package com.example.instagramclone.domain.member.infrastructure;
 import com.example.instagramclone.domain.member.api.MemberProfileResponse;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.domain.QMember;
+import com.example.instagramclone.domain.follow.domain.QFollow;
+import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.Expression;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
 import org.springframework.stereotype.Repository;
+
+import static com.example.instagramclone.domain.follow.domain.QFollow.follow;
+import static com.example.instagramclone.domain.member.domain.QMember.*;
+import static com.example.instagramclone.domain.post.domain.QPost.post;
 
 /**
  * MemberRepositoryCustom의 QueryDSL 구현체.
@@ -33,7 +42,6 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
 
     @Override
     public List<Member> searchByUsername(String keyword) {
-        QMember member = QMember.member;
 
         return queryFactory
                 .selectFrom(member)
@@ -41,10 +49,83 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
                 .fetch();
     }
 
+    
     @Override
     public MemberProfileResponse getProfileHeader(Long targetMemberId, Long loginMemberId) {
-        // TODO: (Day 15) QueryDSL의 Projections.constructor 와 JPAExpressions 서브쿼리를 사용하여 
-        // 1번의 쿼리로 MemberProfileResponse 매핑을 완성하세요.
-        return null;
+
+        /*
+         * Native SQL(동등 로직) 예시
+         *
+         SELECT
+                m.username,
+                m.id,
+                m.name,
+                m.profile_image_url,
+                (SELECT COUNT(*) FROM follows f WHERE f.to_member_id = m.id) AS follower_count,
+                (SELECT COUNT(*) FROM follows f WHERE f.from_member_id = m.id) AS following_count,
+                (SELECT COUNT(*) FROM posts p WHERE p.member_id = m.id) AS post_count,
+                EXISTS (
+                        SELECT 1
+                        FROM follows f2
+                        WHERE f2.from_member_id = :loginMemberId
+                                AND f2.to_member_id = m.id
+                        ) AS is_following,
+                (m.id = :loginMemberId) AS is_current_user
+                FROM users m
+                WHERE m.id = :targetMemberId;
+         
+         * QueryDSL 코드의 각 Expression/exists가 위 SQL의 스칼라 서브쿼리/EXISTS에 대응됩니다.
+         */
+
+        QMember target = member;
+
+        // 팔로워/팔로잉 수: Follow 테이블 방향(from/to)에 맞춰 COUNT
+        // - followerCount: 누가 target을 팔로우 중인가? (follow.toMember.id = target.id)
+        Expression<Long> followerCountExpr = JPAExpressions
+                .select(follow.count())
+                .from(follow)
+                .where(follow.toMember.id.eq(target.id));
+
+        // - followingCount: target이 누굴 팔로우 중인가? (follow.fromMember.id = target.id)
+        Expression<Long> followingCountExpr = JPAExpressions
+                .select(follow.count())
+                .from(follow)
+                .where(follow.fromMember.id.eq(target.id));
+
+        // - postCount: target이 작성한 게시물 수
+        Expression<Long> postCountExpr = JPAExpressions
+                .select(post.count())
+                .from(post)
+                .where(post.writer.id.eq(target.id));
+
+        // isFollowing: loginMember가 target을 이미 팔로우 중인가?
+        QFollow followCheck = new QFollow("followCheck");
+        BooleanExpression isFollowingExpr = JPAExpressions
+                .selectOne()
+                .from(followCheck)
+                .where(
+                        followCheck.fromMember.id.eq(loginMemberId),
+                        followCheck.toMember.id.eq(target.id)
+                )
+                .exists();
+
+        BooleanExpression isCurrentUserExpr = target.id.eq(loginMemberId);
+
+        return queryFactory
+                .select(Projections.constructor(
+                        MemberProfileResponse.class,
+                        target.id,
+                        target.username,
+                        target.name,
+                        target.profileImageUrl,
+                        followerCountExpr,
+                        followingCountExpr,
+                        postCountExpr,
+                        isFollowingExpr,
+                        isCurrentUserExpr
+                ))
+                .from(target)
+                .where(target.id.eq(targetMemberId))
+                .fetchOne();
     }
 }
