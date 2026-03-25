@@ -16,7 +16,7 @@ public record PostResponse(
         List<PostImageResponse> images,
         LocalDateTime createdAt,
         LikeStatusResponse likeStatus,
-        int commentCount
+        long commentCount
 ) {
     
 }

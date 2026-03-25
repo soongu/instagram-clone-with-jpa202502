@@ -4,6 +4,7 @@ import com.example.instagramclone.core.common.dto.SliceResponse;
 import com.example.instagramclone.core.exception.PostErrorCode;
 import com.example.instagramclone.core.exception.PostException;
 import com.example.instagramclone.core.util.FileStore;
+import com.example.instagramclone.domain.comment.domain.CommentRepository;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.post.api.PostDetailResponse;
@@ -66,6 +67,9 @@ class PostServiceTest {
 
     @Mock
     private PostImageRepository postImageRepository;
+
+    @Mock
+    private CommentRepository commentRepository;
 
     @Mock
     private MemberService memberService;
@@ -283,6 +287,7 @@ class PostServiceTest {
             Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(Collections.emptyList());
+            given(commentRepository.countCommentsByPostIds(List.of(100L))).willReturn(Collections.emptyMap());
 
             SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -308,6 +313,7 @@ class PostServiceTest {
             Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(Collections.emptyList());
+            given(commentRepository.countCommentsByPostIds(List.of(100L))).willReturn(Collections.emptyMap());
 
             SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -332,6 +338,7 @@ class PostServiceTest {
             Slice<PostFeedRow> slice = new SliceImpl<>(List.of(new PostFeedRow(post, false)), pageable, false);
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post))).willReturn(List.of(image3, image1, image2));
+            given(commentRepository.countCommentsByPostIds(List.of(100L))).willReturn(Collections.emptyMap());
 
             SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 
@@ -358,6 +365,7 @@ class PostServiceTest {
             given(postRepository.findFeedWithLiked(pageable, 1L)).willReturn(slice);
             given(postImageRepository.findByPostIn(List.of(post1, post2)))
                     .willReturn(List.of(imgA, imgB, imgC));
+            given(commentRepository.countCommentsByPostIds(List.of(10L, 20L))).willReturn(Collections.emptyMap());
 
             SliceResponse<PostResponse> response = postService.getFeed(pageable, 1L);
 

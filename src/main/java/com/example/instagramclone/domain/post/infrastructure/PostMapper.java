@@ -38,12 +38,13 @@ public interface PostMapper {
      */
     List<PostImageResponse> toImageResponses(List<PostImage> postImages);
 
+
     /**
-     * Post + List<PostImage> → PostResponse
+     * Post + List<PostImage> + liked + commentCount → PostResponse
      *
-     * @param liked 피드: QueryDSL EXISTS / 또는 서비스에서 전달
+     * likeCount는 Post 비정규화 컬럼(엔티티 필드) 값을 사용합니다.
      */
-    default PostResponse toResponse(Post post, List<PostImage> images, boolean liked) {
+    default PostResponse toResponse(Post post, List<PostImage> images, boolean liked, long commentCount) {
 
         if (post == null) {
             return null;
@@ -57,7 +58,7 @@ public interface PostMapper {
                 toImageResponses(images),
                 post.getCreatedAt(),
                 new LikeStatusResponse(liked, post.getLikeCount()),
-                0
+                commentCount
         );
     }
 

@@ -7,6 +7,7 @@ import com.example.instagramclone.core.util.FileStore;
 import com.example.instagramclone.domain.member.api.MemberSummary;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
+import com.example.instagramclone.domain.comment.domain.CommentRepository;
 import com.example.instagramclone.domain.post.api.PostCreateRequest;
 import com.example.instagramclone.domain.post.api.PostDetailResponse;
 import com.example.instagramclone.domain.post.api.PostResponse;
@@ -41,6 +42,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final PostImageRepository postImageRepository;
+    private final CommentRepository commentRepository;
     private final MemberService memberService;
     private final FileStore fileStore;
     private final PostMapper postMapper;
@@ -120,12 +122,11 @@ public class PostService {
         // 여러 게시글의 이미지를 한 번에 조회한 뒤, Post별로 묶어 Map으로 만든다.
         Map<Post, List<PostImage>> imageMap = groupImagesByPost(posts);
 
-        // TODO: (Day 15) 메인 피드 리스트 메트릭 성능 최적화 (N+1 문제 해결)
-        // 1. 현재 Slice 에 포함된 postId 리스트를 추출하세요.
-        // 2. commentRepository 와 postLikeRepository 의 커스텀 메서드(IN 쿼리 배치 집계)를 호출하여
-        //    postId 별 댓글 수와 좋아요 수가 담긴 Map<Long, Long> 들을 가져오세요.
-        // 3. (옵션) 기존 Day 12 방식인 isLiked 목록까지 한 번에 Batch 추출할 수 있습니다.
-        // 4. 아래 PostMapper.toResponse 가 metrics 데이터를 포함하도록 조립 로직을 수정하세요.
+        // Day 15 Step 3: 메인 피드 리스트 메트릭
+        // likeCount는 Post.likeCount 비정규화 값을 그대로 사용하고,
+        // commentCount만 현재 페이지의 postId IN (...)으로 배치 집계해 조립한다.
+        List<Long> postIds = posts.stream().map(Post::getId).toList();
+        Map<Long, Long> commentCountMap = commentRepository.countCommentsByPostIds(postIds);
 
         // 각 행(row)을 화면용 PostResponse DTO로 변환한다.
         List<PostResponse> responses = rows.stream()
@@ -133,7 +134,8 @@ public class PostService {
                         row.post(),
                         // 같은 게시글의 이미지들만 꺼내고 imgOrder 기준으로 정렬해서 전달
                         getSortedImages(row.post(), imageMap),
-                        row.liked()))
+                        row.liked(),
+                        commentCountMap.getOrDefault(row.post().getId(), 0L)))
                 .toList();
 
         return SliceResponse.of(slice.hasNext(), responses);

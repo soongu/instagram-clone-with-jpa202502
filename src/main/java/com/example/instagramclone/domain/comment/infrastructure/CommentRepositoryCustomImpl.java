@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.example.instagramclone.domain.comment.domain.QComment.comment;
+import static com.querydsl.core.group.GroupBy.groupBy;
 
 /**
  * {@link CommentRepositoryCustom}의 QueryDSL 구현체.
@@ -153,8 +154,40 @@ public class CommentRepositoryCustomImpl implements CommentRepositoryCustom {
 
     @Override
     public Map<Long, Long> countCommentsByPostIds(List<Long> postIds) {
-        // TODO: (Day 15) IN 쿼리를 사용하여 postIds 에 해당하는 게시글들의 댓글 수를 배치로 집계하세요.
-        // 인스타그램 정책에 따라 원댓글(parent is null)만 셉니다.
-        return Collections.emptyMap();
+        // IN 쿼리 + GROUP BY 로 postId별 댓글 수를 한 번에 집계한다.
+        // 인스타그램 정책: 피드 카드에는 "원댓글 수"만 노출 (대댓글 제외) → parent IS NULL
+        if (postIds == null || postIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<Long, Long> result = queryFactory
+                .from(comment)
+                .where(
+                        comment.post.id.in(postIds),
+                        comment.parent.isNull()
+                )
+                .groupBy(comment.post.id)
+                .transform(groupBy(comment.post.id).as(comment.id.count()));
+
+                /*
+                 * [대안] transform 대신 Tuple로 받아 Map으로 조립
+                 *
+                  List<Tuple> rows = queryFactory
+                          .select(comment.post.id, comment.id.count())
+                          .from(comment)
+                          .where(
+                                  comment.post.id.in(postIds),
+                                  comment.parent.isNull()
+                          )
+                          .groupBy(comment.post.id)
+                          .fetch();
+                 
+                  return rows.stream()
+                          .collect(java.util.stream.Collectors.toMap(
+                                  t -> t.get(0, Long.class),                 // post_id
+                                  t ->  t.get(1, Long.class)       // count(comment.id)
+                          ));
+                 */
+        return result != null ? result : Collections.emptyMap();
     }
 }

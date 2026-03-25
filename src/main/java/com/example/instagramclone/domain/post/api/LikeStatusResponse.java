@@ -5,7 +5,5 @@ public record LikeStatusResponse(
         boolean liked,
         long likeCount
 ) {
-    public static LikeStatusResponse empty() {
-        return new LikeStatusResponse(false, 0L);
-    }
+
 }
