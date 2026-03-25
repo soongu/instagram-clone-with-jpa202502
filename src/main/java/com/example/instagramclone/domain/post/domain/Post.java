@@ -31,7 +31,7 @@ public class Post extends BaseEntity {
      * 토글 시 +1/-1 갱신. (동시 폭주 시 lost update 가능 → Day 17 락으로 보완)
      */
     @Column(nullable = false)
-    private int likeCount = 0;
+    private long likeCount = 0L;
 
     @Builder
     public Post(String content, Member writer) {

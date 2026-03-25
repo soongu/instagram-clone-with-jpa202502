@@ -182,20 +182,8 @@ public class PostService {
      */
     public SliceResponse<ProfilePostResponse> getMemberPostsByUsername(String username, Pageable pageable) {
         Member member = memberService.findByUsername(username);
-        Slice<Post> slice = postRepository.findAllByWriterId(member.getId(), pageable);
-        List<Post> posts = slice.getContent();
-
-        if (posts.isEmpty()) {
-            return SliceResponse.of(slice.hasNext(), Collections.emptyList());
-        }
-
-        // 썸네일/다중이미지/likeCount 조립은 서비스에서 담당
-        Map<Post, List<PostImage>> imageMap = groupImagesByPost(posts);
-        List<ProfilePostResponse> responses = posts.stream()
-                .map(p -> postMapper.toProfilePostResponse(p, getSortedImages(p, imageMap)))
-                .toList();
-
-        return SliceResponse.of(slice.hasNext(), responses);
+        Slice<ProfilePostResponse> slice = postRepository.findAllByWriterId(member.getId(), pageable);
+        return SliceResponse.of(slice.hasNext(), slice.getContent());
     }
 
 

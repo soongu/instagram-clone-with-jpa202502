@@ -14,7 +14,7 @@ public record ProfilePostResponse(
         Long postId,
         String thumbnailUrl,
         boolean multipleImages,
-        int likeCount,
-        int commentCount
+        long likeCount,
+        long commentCount
 ) {
 }

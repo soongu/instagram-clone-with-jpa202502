@@ -109,7 +109,7 @@ class PostRepositoryTest {
         @DisplayName("게시물이 없으면 빈 Slice 반환")
         void returns_empty_slice_when_no_posts() {
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).isEmpty();
             assertThat(result.hasNext()).isFalse();
@@ -132,7 +132,7 @@ class PostRepositoryTest {
             entityManager.clear();
 
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(2);
             // Day 15 TODO: 반환타입이 ProfilePostResponse 로 변경되었으므로 DTO에 맞는 검증으로 수정하세요.
@@ -149,7 +149,7 @@ class PostRepositoryTest {
             entityManager.flush();
 
             Pageable pageable = PageRequest.of(0, 2);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(2);
             assertThat(result.hasNext()).isTrue();
@@ -162,7 +162,7 @@ class PostRepositoryTest {
             entityManager.flush();
 
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.hasNext()).isFalse();
