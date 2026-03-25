@@ -2,8 +2,10 @@ package com.example.instagramclone.domain.post.domain;
 
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.domain.MemberRepository;
+import com.example.instagramclone.domain.post.api.ProfilePostResponse;
 import com.example.instagramclone.infrastructure.persistence.QueryDslConfig;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -100,13 +102,14 @@ class PostRepositoryTest {
 
     @Nested
     @DisplayName("PostRepository.findAllByWriterId()")
+    @Disabled("TODO: Day 15 - 해당 메서드는 QueryDSL 실습용 껍데기이므로 테스트를 비활성화합니다.")
     class FindAllByWriterId {
 
         @Test
         @DisplayName("게시물이 없으면 빈 Slice 반환")
         void returns_empty_slice_when_no_posts() {
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<com.example.instagramclone.domain.post.api.ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).isEmpty();
             assertThat(result.hasNext()).isFalse();
@@ -129,12 +132,12 @@ class PostRepositoryTest {
             entityManager.clear();
 
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(2);
-            assertThat(result.getContent()).extracting(Post::getId)
-                    .containsExactly(newPost.getId(), oldPost.getId());
-            assertThat(result.getContent()).allMatch(post -> post.getWriter().getId().equals(savedMember.getId()));
+            // Day 15 TODO: 반환타입이 ProfilePostResponse 로 변경되었으므로 DTO에 맞는 검증으로 수정하세요.
+            // assertThat(result.getContent()).extracting(com.example.instagramclone.domain.post.api.ProfilePostResponse::postId)
+            //         .containsExactly(newPost.getId(), oldPost.getId());
         }
 
         @Test
@@ -146,7 +149,7 @@ class PostRepositoryTest {
             entityManager.flush();
 
             Pageable pageable = PageRequest.of(0, 2);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<com.example.instagramclone.domain.post.api.ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(2);
             assertThat(result.hasNext()).isTrue();
@@ -159,7 +162,7 @@ class PostRepositoryTest {
             entityManager.flush();
 
             Pageable pageable = PageRequest.of(0, 10);
-            Slice<Post> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
+            Slice<com.example.instagramclone.domain.post.api.ProfilePostResponse> result = postRepository.findAllByWriterId(savedMember.getId(), pageable);
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.hasNext()).isFalse();

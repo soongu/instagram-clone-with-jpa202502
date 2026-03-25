@@ -1,5 +1,6 @@
 package com.example.instagramclone.domain.post.infrastructure;
 
+import com.example.instagramclone.domain.post.api.ProfilePostResponse;
 import com.example.instagramclone.domain.post.domain.Post;
 import com.example.instagramclone.domain.post.domain.QPost;
 import com.example.instagramclone.domain.post.domain.QPostLike;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collections;
 import java.util.List;
 
 import static com.example.instagramclone.domain.post.domain.QPost.*;
@@ -45,23 +47,10 @@ public class PostRepositoryCustomImpl implements PostRepositoryCustom {
      *   이미지 조회는 서비스 레이어에서 IN 쿼리로 별도 처리합니다.
      */
     @Override
-    public Slice<Post> findAllByWriterId(Long writerId, Pageable pageable) {
-        QPost post = QPost.post;
-
-        List<Post> posts = queryFactory
-                .selectFrom(post)
-                .where(post.writer.id.eq(writerId))
-                .orderBy(post.id.desc())
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize() + 1L)
-                .fetch();
-
-        boolean hasNext = posts.size() > pageable.getPageSize();
-        if (hasNext) {
-            posts.remove(posts.size() - 1);
-        }
-
-        return new SliceImpl<>(posts, pageable, hasNext);
+    public Slice<ProfilePostResponse> findAllByWriterId(Long writerId, Pageable pageable) {
+        // TODO: (Day 15) QueryDSL의 transform 기능을 활용해 게시글 목록과 좋아요 수, 댓글 수 집계를 한 번에 처리하세요.
+        // 결과는 ProfilePostResponse 로 조립하여 Slice 로 반환해야 합니다.
+        return new SliceImpl<>(Collections.emptyList(), pageable, false);
     }
 
     /**
@@ -141,5 +130,19 @@ public class PostRepositoryCustomImpl implements PostRepositoryCustom {
             return n.intValue() != 0;
         }
         return false;
+    }
+
+    @Override
+    public Long findPrevPostIdByProfile(Long memberId, Long postId) {
+        // TODO: (Day 15) QueryDSL을 사용하여 현재 postId 보다 이전에 작성된 최신 글의 ID 하나를 찾는 쿼리를 작성하세요.
+        // Hint: p.id > postId ORDER BY p.id ASC LIMIT 1
+        return null;
+    }
+
+    @Override
+    public Long findNextPostIdByProfile(Long memberId, Long postId) {
+        // TODO: (Day 15) QueryDSL을 사용하여 현재 postId 보다 나중에 작성된 가장 오래된 글의 ID 하나를 찾는 쿼리를 작성하세요.
+        // Hint: p.id < postId ORDER BY p.id DESC LIMIT 1
+        return null;
     }
 }

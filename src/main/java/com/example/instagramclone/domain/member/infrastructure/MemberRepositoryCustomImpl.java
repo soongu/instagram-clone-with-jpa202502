@@ -1,5 +1,6 @@
 package com.example.instagramclone.domain.member.infrastructure;
 
+import com.example.instagramclone.domain.member.api.MemberProfileResponse;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.member.domain.QMember;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -38,5 +39,12 @@ public class MemberRepositoryCustomImpl implements MemberRepositoryCustom {
                 .selectFrom(member)
                 .where(member.username.containsIgnoreCase(keyword))
                 .fetch();
+    }
+
+    @Override
+    public MemberProfileResponse getProfileHeader(Long targetMemberId, Long loginMemberId) {
+        // TODO: (Day 15) QueryDSL의 Projections.constructor 와 JPAExpressions 서브쿼리를 사용하여 
+        // 1번의 쿼리로 MemberProfileResponse 매핑을 완성하세요.
+        return null;
     }
 }

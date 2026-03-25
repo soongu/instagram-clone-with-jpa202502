@@ -7,6 +7,7 @@ import com.example.instagramclone.core.util.FileStore;
 import com.example.instagramclone.domain.member.application.MemberService;
 import com.example.instagramclone.domain.member.domain.Member;
 import com.example.instagramclone.domain.post.api.PostCreateRequest;
+import com.example.instagramclone.domain.post.api.PostDetailResponse;
 import com.example.instagramclone.domain.post.api.PostResponse;
 import com.example.instagramclone.domain.post.api.ProfilePostResponse;
 import com.example.instagramclone.domain.post.domain.Post;
@@ -117,6 +118,13 @@ public class PostService {
         // 여러 게시글의 이미지를 한 번에 조회한 뒤, Post별로 묶어 Map으로 만든다.
         Map<Post, List<PostImage>> imageMap = groupImagesByPost(posts);
 
+        // TODO: (Day 15) 메인 피드 리스트 메트릭 성능 최적화 (N+1 문제 해결)
+        // 1. 현재 Slice 에 포함된 postId 리스트를 추출하세요.
+        // 2. commentRepository 와 postLikeRepository 의 커스텀 메서드(IN 쿼리 배치 집계)를 호출하여
+        //    postId 별 댓글 수와 좋아요 수가 담긴 Map<Long, Long> 들을 가져오세요.
+        // 3. (옵션) 기존 Day 12 방식인 isLiked 목록까지 한 번에 Batch 추출할 수 있습니다.
+        // 4. 아래 PostMapper.toResponse 가 metrics 데이터를 포함하도록 조립 로직을 수정하세요.
+
         // 각 행(row)을 화면용 PostResponse DTO로 변환한다.
         List<PostResponse> responses = rows.stream()
                 .map(row -> postMapper.toResponse(
@@ -130,14 +138,27 @@ public class PostService {
     }
 
     /**
+     * Day 15 Live Coding: 피드 상세 페이지 조회
+     * 컨텍스트에 따른 선택적 네비게이션 구조 포함
+     */
+    public PostDetailResponse getPostDetail(Long postId, String context, Long memberId) {
+        // TODO: (Day 15)
+        // 1. Post 엔티티와 연관된 이미지를 찾고, 작성자(writer) 요약 정보를 조립하세요.
+        // 2. context 파라미터가 "profile" 이고 memberId가 유효할 때,
+        //    PostRepository 에 새로 만든 메서드를 호출하여 prevPostId, nextPostId 를 검색하세요.
+        // 3. PostDetailResponse DTO 로 반환하세요.
+        return null;
+    }
+
+    /**
      * 특정 회원의 프로필 게시글 목록 조회.
      *
      * 메인 피드와 비슷하지만, liked 정보 없이
      * "프로필 그리드"에 필요한 DTO(ProfilePostResponse)로 변환한다.
      */
     public SliceResponse<ProfilePostResponse> getMemberPosts(Long memberId, Pageable pageable) {
-        Slice<Post> postSlice = postRepository.findAllByWriterId(memberId, pageable);
-        return buildSliceResponse(postSlice, postMapper::toProfilePostResponse);
+        Slice<ProfilePostResponse> slice = postRepository.findAllByWriterId(memberId, pageable);
+        return SliceResponse.of(slice.hasNext(), slice.getContent());
     }
 
     /**
@@ -151,35 +172,7 @@ public class PostService {
         return getMemberPosts(member.getId(), pageable);
     }
 
-    /**
-     * "게시글 Slice -> DTO SliceResponse" 변환 로직을 공통화한 메서드.
-     *
-     * 메인 피드와 프로필 게시글 목록은
-     * 1) 게시글들을 조회하고
-     * 2) 이미지들을 한 번에 가져오고
-     * 3) DTO로 바꾼다
-     * 는 큰 흐름이 같기 때문에, 중복 코드를 줄이기 위해 따로 뽑아냈다.
-     *
-     * BiFunction<Post, List<PostImage>, T> toDto:
-     * - Post 하나와 그 게시글의 이미지 목록을 받아
-     * - 원하는 DTO 하나(T)로 바꾸는 함수
-     * 라고 이해하면 된다.
-     */
-    private <T> SliceResponse<T> buildSliceResponse(Slice<Post> postSlice, BiFunction<Post, List<PostImage>, T> toDto) {
-        List<Post> posts = postSlice.getContent();
-        if (posts.isEmpty()) {
-            return SliceResponse.of(postSlice.hasNext(), Collections.emptyList());
-        }
 
-        // 게시글 여러 개에 달린 이미지들을 한 번에 조회해서 N+1 문제를 줄인다.
-        Map<Post, List<PostImage>> imageMap = groupImagesByPost(posts);
-
-        List<T> responses = posts.stream()
-                .map(post -> toDto.apply(post, getSortedImages(post, imageMap)))
-                .toList();
-
-        return SliceResponse.of(postSlice.hasNext(), responses);
-    }
 
     /**
      * 여러 게시글의 이미지를 한 번에 조회한 뒤,

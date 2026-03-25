@@ -4,6 +4,9 @@ import com.example.instagramclone.domain.comment.domain.Comment;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 댓글 조회 전용 QueryDSL 커스텀 리포지토리 (FollowRepositoryCustom 과 동일한 위치·역할).
  *
@@ -39,4 +42,10 @@ public interface CommentRepositoryCustom {
      * (다른 글의 댓글 id, 대댓글 id를 넣은 경우 모두 {@code false})
      */
     boolean existsRootCommentForReplies(Long postId, Long rootCommentId);
+
+    /**
+     * Day 15 Live Coding: 피드 카드 배치 메트릭 조회용
+     * 주어진 게시글 ID 목록에 대해 각 게시글의 원댓글 개수를 Map 형태로 반환합니다.
+     */
+    Map<Long, Long> countCommentsByPostIds(List<Long> postIds);
 }

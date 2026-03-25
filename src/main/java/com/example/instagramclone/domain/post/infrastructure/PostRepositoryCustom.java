@@ -1,5 +1,6 @@
 package com.example.instagramclone.domain.post.infrastructure;
 
+import com.example.instagramclone.domain.post.api.ProfilePostResponse;
 import com.example.instagramclone.domain.post.domain.Post;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -21,12 +22,17 @@ public interface PostRepositoryCustom {
 
     /**
      * 특정 회원의 게시글을 최신순으로 페이징 조회합니다.
-     * 프로필 페이지 그리드 API에서 사용합니다.
+     * 프로필 페이지 그리드 API에서 사용합니다. (Day 15: 좋아요 수, 댓글 수 포함)
      */
-    Slice<Post> findAllByWriterId(Long writerId, Pageable pageable);
+    Slice<ProfilePostResponse> findAllByWriterId(Long writerId, Pageable pageable);
 
     /**
      * 메인 피드: Post + writer fetchJoin + 로그인 회원의 좋아요 여부를 EXISTS 서브쿼리로 한 번에 조회 (과제: N+1 없음).
      */
     Slice<PostFeedRow> findFeedWithLiked(Pageable pageable, Long loginMemberId);
+
+    // TODO: (Day 15) 특정 유저의 게시글 중 이전/다음 글 ID 조회하기
+    Long findPrevPostIdByProfile(Long memberId, Long postId);
+
+    Long findNextPostIdByProfile(Long memberId, Long postId);
 }

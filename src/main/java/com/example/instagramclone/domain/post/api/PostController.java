@@ -82,4 +82,18 @@ public class PostController {
         LikeStatusResponse response = postLikeService.toggleLike(loginUser.id(), postId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    /**
+     * Day 15 Live Coding: 피드 상세 조회 (선택적 네비게이션)
+     * 댓글은 별도 API 로 분리하고 본문, 캐러셀, 작성자와 이전/다음 글 식별자를 반환한다.
+     */
+    @GetMapping("/api/posts/{postId}")
+    public ResponseEntity<ApiResponse<PostDetailResponse>> getPostDetail(
+            @PathVariable Long postId,
+            @RequestParam(required = false) String context,   // 예: "profile" 또는 "feed"
+            @RequestParam(required = false) Long memberId) {  // 프로필 주인의 ID
+
+        PostDetailResponse response = postService.getPostDetail(postId, context, memberId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 }

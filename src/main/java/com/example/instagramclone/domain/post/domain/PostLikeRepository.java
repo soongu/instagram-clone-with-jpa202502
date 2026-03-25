@@ -10,7 +10,9 @@ import java.util.List;
  *
  * - findByMemberAndPostIn: 피드 Step 4 — 동일 Member + Post 목록에 대한 좋아요 배치 조회 (existsByMemberAndPost 와 타입 줄 맞춤)
  */
-public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
+import com.example.instagramclone.domain.post.infrastructure.PostLikeRepositoryCustom;
+
+public interface PostLikeRepository extends JpaRepository<PostLike, Long>, PostLikeRepositoryCustom {
 
     boolean existsByMemberAndPost(Member member, Post post);
 

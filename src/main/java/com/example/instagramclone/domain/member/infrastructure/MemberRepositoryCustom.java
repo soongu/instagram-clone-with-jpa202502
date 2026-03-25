@@ -1,5 +1,6 @@
 package com.example.instagramclone.domain.member.infrastructure;
 
+import com.example.instagramclone.domain.member.api.MemberProfileResponse;
 import com.example.instagramclone.domain.member.domain.Member;
 
 import java.util.List;
@@ -20,4 +21,10 @@ public interface MemberRepositoryCustom {
      * SQL: WHERE LOWER(username) LIKE LOWER('%keyword%')
      */
     List<Member> searchByUsername(String keyword);
+
+    /**
+     * Day 15 Live Coding: 프로필 헤더 통계 조회
+     * 팔로워/팔로잉/게시물 수, 팔로우 여부를 한 번에 조회합니다.
+     */
+    MemberProfileResponse getProfileHeader(Long targetMemberId, Long loginMemberId);
 }

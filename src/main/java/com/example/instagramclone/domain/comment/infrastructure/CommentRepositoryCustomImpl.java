@@ -11,7 +11,9 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static com.example.instagramclone.domain.comment.domain.QComment.comment;
 
@@ -147,5 +149,12 @@ public class CommentRepositoryCustomImpl implements CommentRepositoryCustom {
             items = items.subList(0, pageable.getPageSize());
         }
         return new SliceImpl<>(items, pageable, hasNext);
+    }
+
+    @Override
+    public Map<Long, Long> countCommentsByPostIds(List<Long> postIds) {
+        // TODO: (Day 15) IN 쿼리를 사용하여 postIds 에 해당하는 게시글들의 댓글 수를 배치로 집계하세요.
+        // 인스타그램 정책에 따라 원댓글(parent is null)만 셉니다.
+        return Collections.emptyMap();
     }
 }
